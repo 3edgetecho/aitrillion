@@ -1,0 +1,65 @@
+------------2022-09-16 09:38:28---------------
+Get Shop Info /aitrillion/v1/getshopinfo
+Array
+(
+    [app_name] => Ai Trillion
+    [shop_name] => updateproject.com/aitrillion
+    [shop_type] => Wordpress
+    [shop_owner] => 
+    [country] => IN
+    [city] => Jaipur
+    [zip] => 300210
+    [phone] => 
+    [store_name] => Ai Trillion
+    [shop_currency] => INR
+    [money_format] => &#8377;
+    [install_date] => 
+    [created_at] => 
+)
+
+------------2022-09-16 09:38:59---------------
+Get Shop Info /aitrillion/v1/getshopinfo
+Array
+(
+    [app_name] => Ai Trillion
+    [shop_name] => updateproject.com/aitrillion
+    [shop_type] => Wordpress
+    [shop_owner] => 
+    [country] => IN
+    [city] => Jaipur
+    [zip] => 300210
+    [phone] => 
+    [store_name] => Ai Trillion
+    [shop_currency] => INR
+    [money_format] => &#8377;
+    [install_date] => 
+    [created_at] => 
+)
+
+------------2022-09-16 09:40:50---------------
+Get Shop Info /aitrillion/v1/getshopinfo
+return: Array
+(
+    [app_name] => Ai Trillion
+    [shop_name] => updateproject.com/aitrillion
+    [shop_type] => Wordpress
+    [shop_owner] => 
+    [country] => IN
+    [city] => Jaipur
+    [zip] => 300210
+    [phone] => 
+    [store_name] => Ai Trillion
+    [shop_currency] => INR
+    [money_format] => &#8377;
+    [install_date] => 
+    [created_at] => 
+)
+
+------------2022-09-16 09:40:55---------------
+Get Shop Info 
+return: Array
+(
+    [result] => 
+    [message] => Unauthorized Access
+)
+
