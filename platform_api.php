@@ -399,6 +399,7 @@ function getProducts(WP_REST_Request $request){
                 //echo '<br>available_variations: <pre>'; print_r($available_variations); echo '</pre>';
 
                 $attributes = array();
+                
                 foreach ($available_variations as $key => $variations) 
                 { 
                     $a = array();
