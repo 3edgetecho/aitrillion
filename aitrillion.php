@@ -44,7 +44,8 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
     define( 'AIT_URL', plugin_dir_url( AIT_FILE ) );
 
     // Define end point of Ai Trillion 
-    define('AITRILLION_END_POINT', 'https://connector-api-dev.aitrillion.com/dev/');
+    //define('AITRILLION_END_POINT', 'https://connector-api-dev.aitrillion.com/dev/');
+    define('AITRILLION_END_POINT', 'https://connector-api-dev.aitrillion.com/');
     define('AITRILLION_APP_NAME', 'Aitrillion Wordpress');
 
     $domain = preg_replace("(^https?://)", "", site_url() );
@@ -52,7 +53,10 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
     define('DOMAIN', $domain);
 
     include AIT_PATH . 'common_functions.php';
+    include AIT_PATH . 'cron-jobs.php';
     include AIT_PATH . 'platform_api.php';
+    include AIT_PATH . 'data_sync.php';
+    include AIT_PATH . 'shortcodes.php';
 
         // add the admin options page
         
@@ -78,14 +82,14 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                 'aitrillion_options_page'
             );
 
-            /*add_submenu_page(
+            add_submenu_page(
                 'aitrillion.php',
-                'Ai Trillion Sync Data',
-                'Sync Data',
+                'Aitrillion Shortcode Widgets',
+                'Shortcode Widgets',
                 'manage_options',
-                'aitrillion.php',
-                'aitrillion_sync_data'
-            );*/
+                'aitrillion_shortcode',
+                'aitrillion_shortcode'
+            );
 
         }
 
@@ -95,6 +99,10 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
             register_setting( 'aitrillion_options', '_aitrillion_api_key' );
             register_setting( 'aitrillion_options', '_aitrillion_api_password' );
+            register_setting( 'aitrillion_options', '_aitrillion_script_url' );
+            register_setting( 'aitrillion_options', '_aitrillion_affiliate_module' );
+
+            update_option('_aitrillion_script_version', '1');
 
         }
 
@@ -121,6 +129,22 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                             <input type="password" name="_aitrillion_api_password" value="<?php echo esc_attr( get_option('_aitrillion_api_password') ); ?>" />
                         </td>
                         </tr>
+
+                        <tr valign="top">
+                        <th scope="row">AiTrillion script URL</th>
+                        <td>
+                            <input type="text" name="_aitrillion_script_url" value="<?php echo esc_attr( get_option('_aitrillion_script_url') ); ?>" />
+                        </td>
+                        </tr>
+
+                        <tr valign="top">
+                        <th scope="row">AiTrillion Affiliate Module</th>
+                        <td>
+                            <?php $checked = esc_attr( get_option('_aitrillion_affiliate_module') ) ? 'checked="checked"' : ''; ?>
+
+                            <input type="checkbox" name="_aitrillion_affiliate_module" value="1" <?=$checked?> />
+                        </td>
+                        </tr>
                     </table>
                     
                     <?php submit_button(); ?>
@@ -129,6 +153,60 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
             </div>
      
     <?php
+        }
+
+        function aitrillion_shortcode(){
+        ?>
+
+            <div class="wrap">
+                <h1>AiTrillion Shortcode</h1>
+
+                <p>Use below shortcode and place on any page to display Aitrillion widget</p>
+
+                <table width="80%">
+                    <tr>
+                        <td><strong>List review + Write a review section</strong></td>
+                        <td>[ait_list_review]</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Product Featured Review Shortcode</strong></td>
+                        <td>[ait_product_featured_reviews]</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Site Reviews Shortcode</strong></td>
+                        <td>[ait_site_reviews]</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>New Arrivals Shortcode</strong></td>
+                        <td>[ait_new_arrival]</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Trending Product Shortcode</strong></td>
+                        <td>[ait_trending_product]</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Recent View Shortcode</strong></td>
+                        <td>[ait_recent_view]</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Affiliate Shortcode</strong></td>
+                        <td>[ait_affiliate]</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Loyalty Shortcode</strong></td>
+                        <td>[ait_loyalty]</td>
+                    </tr>
+
+                </table>
+            </div>
+        <?php
         }
 
         add_action('updated_option', 'validate_api_key', 10, 3);
@@ -157,12 +235,74 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                 if(isset($response->status) && $response->status == 'sucess'){
                     update_option('_aitrillion_valid_key', 'true');
                 }else{
-                    update_option('_aitrillion_valid_key', 'true');
+                    update_option('_aitrillion_valid_key', 'false');
                 }
+            }
+        }
+
+        add_action('woocommerce_thankyou', 'aitrillion_aff_tracking_code', 10, 1);
+        function aitrillion_aff_tracking_code( $order_id ) {
+
+            if ( ! $order_id )
+                return;
+
+            if(isset($_COOKIE['aio_shopify_ref'])){
+                $order = wc_get_order( $order_id );
+                $order->update_meta_data( '_aio_shopify_ref', $_COOKIE['aio_shopify_ref'] );
+                $order->save();
+            }
+
+            if(isset($_COOKIE['aio_affiliate_code'])){
+                $order = wc_get_order( $order_id );
+                $order->update_meta_data( '_aio_affiliate_code', $_COOKIE['aio_affiliate_code'] );
+                $order->save();
+            }
+        }
+
+        add_action('woocommerce_add_to_cart', 'ait_generate_cart_id');
+        function ait_generate_cart_id() {
+            
+            $cart_id = WC()->session->get('cart_id');
+
+            //echo '<br>cart_id: '.$cart_id;
+
+            if( is_null($cart_id) ) {
+
+                $cart_id = uniqid();
+
+                WC()->session->set('cart_id', $cart_id);
+
+                // set a cookie for 1 year
+                setcookie('quoteid', $cart_id, time()+31556926);
+
+                //$cart_id = WC()->session->get('cart_id');
+
+                //echo '<br>new_cart: '.$cart_id;
+            }
+        }
+
+
+        add_action('woocommerce_thankyou', 'aitrillion_update_order_cart_id', 10, 1);
+        function aitrillion_update_order_cart_id( $order_id ) {
+
+            if ( ! $order_id )
+                return;
+
+            $cart_id = WC()->session->get('cart_id');
+
+            //echo '<br>cart_id: '.$cart_id;
+
+            if( !is_null($cart_id) ) {
+
+                $order = wc_get_order( $order_id );
+                $order->update_meta_data( '_aio_card_id', $cart_id );
+                $order->save();
+
+                WC()->session->__unset( 'cart_id' );
             }
         }
     
 }else{
-    echo 'This plugin works with wocommerce only. Please install and activate woocommerce first.';
+    echo 'This plugin works with woocommerce only. Please install and activate woocommerce first.';
 }
 

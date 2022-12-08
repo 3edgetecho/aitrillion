@@ -6,28 +6,71 @@
         
         register_rest_route( 'aitrillion/v1', 'getshopinfo',array(
                     'methods'  => 'GET',
-                    'callback' => 'getStoreDetail'
+                    'callback' => 'getStoreDetail',
+                    'permission_callback' => '__return_true'
         ));
 
         register_rest_route( 'aitrillion/v1', 'getcustomers',array(
                     'methods'  => 'GET',
-                    'callback' => 'getCustomers'
+                    'callback' => 'getCustomers',
+                    'permission_callback' => '__return_true'
         ));
 
         register_rest_route( 'aitrillion/v1', 'getcategories',array(
                     'methods'  => 'GET',
-                    'callback' => 'getCategories'
+                    'callback' => 'getCategories',
+                    'permission_callback' => '__return_true' 
         ));
 
         register_rest_route( 'aitrillion/v1', 'getproducts',array(
                     'methods'  => 'GET',
-                    'callback' => 'getProducts'
+                    'callback' => 'getProducts',
+                    'permission_callback' => '__return_true'
         ));
 
         register_rest_route( 'aitrillion/v1', 'getorders',array(
                     'methods'  => 'GET',
-                    'callback' => 'getOrders'
+                    'callback' => 'getOrders',
+                    'permission_callback' => '__return_true'
         ));
+
+        register_rest_route( 'aitrillion/v1', 'getcategorycollection',array(
+                    'methods'  => 'GET',
+                    'callback' => 'getCategoryCollection',
+                    'permission_callback' => '__return_true'
+        ));
+
+        register_rest_route( 'aitrillion/v1', 'searchcategory',array(
+                    'methods'  => 'GET',
+                    'callback' => 'searchCategory',
+                    'permission_callback' => '__return_true'
+        ));
+
+        register_rest_route( 'aitrillion/v1', 'updatescriptversion',array(
+                    'methods'  => 'GET',
+                    'callback' => 'updateScriptVersion',
+                    'permission_callback' => '__return_true'
+        ));
+
+        register_rest_route( 'aitrillion/v1', 'blockloyaltymember',array(
+                    'methods'  => 'GET',
+                    'callback' => 'blockLoyaltyMember',
+                    'permission_callback' => '__return_true'
+        ));
+
+        register_rest_route( 'aitrillion/v1', 'cart',array(
+                    'methods'  => 'POST',
+                    'callback' => 'abandonedcart',
+                    'permission_callback' => '__return_true'
+        ));
+
+        register_rest_route( 'aitrillion/v1', 'createcoupon',array(
+                    'methods'  => 'POST',
+                    'callback' => 'createcoupon',
+                    'permission_callback' => '__return_true'
+        ));
+
+        
     });
 
 
@@ -59,7 +102,7 @@ function aitrillion_auth_check(){
 
         $log_message = 'Get Shop Info '.PHP_EOL.'return: '.print_r($return, true);
 
-        aitrillion_api_log($log_message);
+        //aitrillion_api_log($log_message);
 
         echo json_encode($return);
         exit;
@@ -114,7 +157,9 @@ function getStoreDetail(WP_REST_Request $request){
     $response = new WP_REST_Response($return);
     $response->set_status(200);
 
-    $log_message = 'Get Shop Info '.$endpoint.PHP_EOL.'return: '.print_r($return, true);
+
+    $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+    $log_message .= 'Get Shop Info '.$endpoint.PHP_EOL.'return: '.print_r($return, true);
 
     aitrillion_api_log($log_message);
 
@@ -129,26 +174,26 @@ function getCustomers(WP_REST_Request $request){
 
     //echo '<br>params: <pre>'; print_r($params); echo '</pre>';
 
-    if(!isset($params['result_type'])){
+    if(!isset($params['result_type']) || empty($params['result_type'])){
 
-        $return['result'] = false;
-        $return['message'] = 'Result type not defined';
-
-        $response = new WP_REST_Response($return);
-        $response->set_status(200);
-
-        return $response;
+        $params['result_type'] = 'row';
     }
 
+    $updated_at = array();
     
-    // $params['updated_at'] // TODO need to discuss logic and implement in customer, products, orders, category
+    if(isset($params['updated_at']) && !empty($params['updated_at'])){
+        $updated_at = array( 
+                            array( 'after' => $params['updated_at'], 'inclusive' => true )  
+                        );
+    }
 
     if($params['result_type'] == 'count'){
 
         $customer_query = new WP_User_Query(
           array(
              'fields' => 'ID',
-             'role' => 'customer',         
+             'role' => 'customer',    
+             'date_query' => $updated_at,      
           )
         );
 
@@ -159,6 +204,12 @@ function getCustomers(WP_REST_Request $request){
         $return['result'] = true;
         $return['customers']['count'] = count($customers);
 
+
+        $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+        $log_message .= 'Get Customer API: result_type Count .'.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+        aitrillion_api_log($log_message);
+
         $response = new WP_REST_Response($return);
         $response->set_status(200);
 
@@ -168,14 +219,32 @@ function getCustomers(WP_REST_Request $request){
 
     if($params['result_type'] == 'row'){
 
-        $paged = $params['page'] ? $params['page'] : 1;
+        if(isset($params['page'])  && !empty($params['page'])){
+            $paged = $params['page'];
+        }else{
+            $paged = 1;
+        }
 
+        if(isset($params['limit'])  && !empty($params['limit'])){
+            $limit = $params['limit'];
+        }else{
+            $limit = 10;
+        }
+
+        if($paged == 1){
+            $offset = 0;  
+        }else {
+            $offset = ($paged-1) * $limit;
+        }
+        
         $customer_query = new WP_User_Query(
           array(
              'fields' => 'ID',
              'role' => 'customer',
              'paged' => $paged,
-             'number' => 10,
+             'number' => $limit,
+             'offset' => $offset,
+             'date_query' => $updated_at, 
              /*'meta_query' => array(
                     array(
                         'key' => '_aitrillion_sync',
@@ -197,6 +266,10 @@ function getCustomers(WP_REST_Request $request){
 
                $customer = new WC_Customer( $customer_id );
 
+               $modified_date = $customer->get_date_modified();
+
+               //echo '<br>modified_date: <pre>'; print_r($modified_date); echo '</pre>';
+
                $c = array();
 
                $c['id'] = $customer_id;
@@ -206,12 +279,32 @@ function getCustomers(WP_REST_Request $request){
                $c['verified_email'] = true;
                $c['phone'] = $customer->get_billing_phone();
                $c['created_at'] = $customer->get_date_created()->date('Y-m-d H:i:s');
-               $c['updated_at'] = $customer->get_date_modified()->date('Y-m-d H:i:s');
+
+                if(!empty($customer->get_date_modified())){
+                    $c['updated_at'] = $customer->get_date_modified()->date('Y-m-d H:i:s');
+                }else{
+                    $c['updated_at'] = '';
+                }
+               
+
                $c['orders_count'] = $customer->get_order_count();
                $c['total_spent'] = $customer->get_total_spent();
 
-               $c['last_order_name'] = null;    // TODO update with order number
-               $c['last_order_id'] = null;    // TODO update with order ID
+               $last_order = $customer->get_last_order();
+               
+
+               if(!empty($last_order)){
+                    //echo '<pre>'; print_r($last_order); echo '</pre>';
+                    $last_order_id = $last_order->get_id();
+                    //echo '<br>last_order_id: '.$last_order_id;
+
+                    $c['last_order_name'] = $last_order_id;
+                    $c['last_order_id'] = $last_order_id;
+
+               }else{
+                    $c['last_order_name'] = null;
+                    $c['last_order_id'] = null;
+               }
 
                $c['default_address'] = array(
                                 'id' => 1,
@@ -261,6 +354,11 @@ function getCustomers(WP_REST_Request $request){
             $return['result'] = true;
 
             //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
+
+            $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+            $log_message .= 'Get Customer API: result_type row .'.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+            aitrillion_api_log($log_message);
 
             $response = new WP_REST_Response($return);
             $response->set_status(200);
@@ -315,19 +413,43 @@ function getProducts(WP_REST_Request $request){
     $params = $request->get_query_params();
 
     //echo '<br>params: <pre>'; print_r($params); echo '</pre>';
+    
 
-    if(!isset($params['result_type'])){
+    if(!isset($params['result_type']) || empty($params['result_type'])){
 
-        $return['result'] = false;
-        $return['message'] = 'Result type not defined';
-
-        $response = new WP_REST_Response($return);
-        $response->set_status(200);
-
-        return $response;
+        $params['result_type'] = 'row';
     }
 
-    $products = wc_get_products( array( 'status' => 'publish', 'limit' => -1 ) );
+    $args['status'] = 'publish';
+
+    if(isset($params['updated_at']) && !empty($params['updated_at'])){
+        $args['date_created'] = '>'.$params['updated_at'];
+    }
+
+    if(isset($params['page']) && !empty($params['page'])){
+        $args['page'] = $params['page'];
+    }else{
+        $args['page'] = 1;
+    }
+
+    if(isset($params['limit']) && !empty($params['limit'])){
+        $args['limit'] = $params['limit'];
+    }else{
+        $args['limit'] = 10;
+    }
+
+    if($params['result_type'] == 'count'){
+
+        unset($args['page']);
+        $args['limit'] = '-1';
+
+    }
+
+    //echo '<pre>'; print_r($args); echo '</pre>';
+
+    $products = wc_get_products( $args );
+
+    //echo '<pre>'; print_r($products); echo '</pre>';    
 
     if($params['result_type'] == 'count'){
 
@@ -337,6 +459,11 @@ function getProducts(WP_REST_Request $request){
 
         $return['result'] = true;
         $return['products']['count'] = count($products);
+
+        $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+        $log_message .= 'Get Product API: result_type Count .'.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+        aitrillion_api_log($log_message);
 
         $response = new WP_REST_Response($return);
         $response->set_status(200);
@@ -399,18 +526,18 @@ function getProducts(WP_REST_Request $request){
                 //echo '<br>available_variations: <pre>'; print_r($available_variations); echo '</pre>';
 
                 $attributes = array();
-                
+                $position = 1;
+
                 foreach ($available_variations as $key => $variations) 
                 { 
                     $a = array();
-                    $position = 1;
-
+                    
                     //echo '<pre>'; print_r($variations); echo '</pre>';
 
                     $a['id'] = $variations['variation_id'];
                     $a['product_id'] = $p['id'];
-                    $a['price'] =  $variations['display_regular_price'];
-                    $a['compare_at_price'] = $variations['display_price'];  // sale price
+                    $a['price'] = $variations['display_price'];
+                    $a['compare_at_price'] = $variations['display_regular_price'];  // sale price
                     $a['sku'] = $variations['sku'];
                     $a['position'] = $position;
                     $a['inventory_quantity'] = $variations['max_qty'];
@@ -448,18 +575,20 @@ function getProducts(WP_REST_Request $request){
 
             }else{
 
-                $p['variants']['id'] = $p['id'];
-                $p['variants']['product_id'] = $p['id'];
-                $p['variants']['title'] = $p['title'];
-                $p['variants']['price'] = $product->get_regular_price();
-                $p['variants']['compare_at_price'] = $product->get_sale_price();
-                $p['variants']['sku'] = $product->get_sku();
-                $p['variants']['position'] = 1;
-                $p['variants']['option1'] = '';
-                $p['variants']['inventory_quantity'] = $product->get_stock_quantity();
-                $p['variants']['image_id'] = $image_id;
-                $p['variants']['created_at'] = $p['created_at'];
-                $p['variants']['updated_at'] = $p['updated_at'];
+                $a['id'] = $p['id'];
+                $a['product_id'] = $p['id'];
+                $a['title'] = $p['title'];
+                $a['price'] = $product->get_sale_price();
+                $a['compare_at_price'] = $product->get_regular_price();
+                $a['sku'] = $product->get_sku();
+                $a['position'] = 1;
+                $a['option1'] = '';
+                $a['inventory_quantity'] = $product->get_stock_quantity();
+                $a['image_id'] = $image_id;
+                $a['created_at'] = $p['created_at'];
+                $a['updated_at'] = $p['updated_at'];
+
+                $p['variants'][] = $a;
             }
 
             $return['products'][] = $p;
@@ -469,6 +598,11 @@ function getProducts(WP_REST_Request $request){
         //echo '<br>products: <pre>'; print_r($product_result); echo '</pre>';
 
         $return['result'] = true;
+
+        $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+        $log_message .= 'Get Product API: result_type row .'.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+        aitrillion_api_log($log_message);
 
         $response = new WP_REST_Response($return);
         $response->set_status(200);
@@ -484,19 +618,31 @@ function getOrders(WP_REST_Request $request){
 
     $params = $request->get_query_params();
 
-    if($params['result_type'] == 'count'){
+    if(!isset($params['result_type']) || empty($params['result_type'])){
 
-        $args = array(
-            'status'   => array_keys( wc_get_order_statuses() ),
-            'limit' => -1
-        );
+        $params['result_type'] = 'row';
+    }
+
+    if($params['result_type'] == 'count'){
+        
+        $args['status'] = array_keys( wc_get_order_statuses() );
+        $args['limit'] = -1;
+
+        if(isset($params['updated_at']) && !empty($params['updated_at'])){
+            $args['date_created'] = '>'.$params['updated_at'];
+        }
 
         $orders = wc_get_orders( $args );
 
         $return = array();
 
         $return['result'] = true;
-        $return['customers']['count'] = count($orders);
+        $return['orders']['count'] = count($orders);
+
+        $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+        $log_message .= 'Get Order API: result_type Count .'.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+        aitrillion_api_log($log_message);
 
         $response = new WP_REST_Response($return);
         $response->set_status(200);
@@ -508,15 +654,27 @@ function getOrders(WP_REST_Request $request){
 
     if($params['result_type'] == 'row'){
 
-        $paged = $params['page'] ? $params['page'] - 1 : 0;
+        //$paged = $params['page'] ? $params['page'] - 1 : 0;
 
         //echo '<pre>'; print_r(wc_get_order_statuses()); echo '</pre>';
 
-        $args = array(
-            'status'   => array_keys( wc_get_order_statuses() ),
-            'page' => $paged,
-            'limit' => 10
-        );
+        $args['status'] = array_keys( wc_get_order_statuses() );
+
+        if(isset($params['updated_at']) && !empty($params['updated_at'])){
+            $args['date_created'] = '>'.$params['updated_at'];
+        }
+
+        if(isset($params['page']) && !empty($params['page'])){
+            $args['page'] = $params['page'];
+        }else{
+            $args['page'] = 1;
+        }
+
+        if(isset($params['limit']) && !empty($params['limit'])){
+            $args['limit'] = $params['limit'];
+        }else{
+            $args['limit'] = 10;
+        }
 
         $orders = wc_get_orders( $args );
 
@@ -527,6 +685,16 @@ function getOrders(WP_REST_Request $request){
         foreach($orders as $order){
 
             //echo '<br>order id: '.$order->get_id();
+
+            //echo '<br>'.$order->get_status();
+
+            if ( is_a( $order, 'WC_Order_Refund' ) ) {
+                //$order = wc_get_order( $order->get_parent_id() );
+
+                //echo '<br>get_parent_id: '.$order->get_parent_id();
+
+                continue;
+            }
 
             if($order->get_status() == 'completed'){
 
@@ -555,7 +723,7 @@ function getOrders(WP_REST_Request $request){
             $o['gateway'] = $order->get_payment_method();
             $o['currency'] = $order->get_currency();
             $o['browser_ip'] = $order->get_customer_ip_address();
-            $o['cart_token'] = '';
+            $o['cart_token'] = $order->get_meta('_aio_card_id');
             $o['token'] = '';
             $o['tags'] = '';
             $o['landing_site'] = '';
@@ -605,7 +773,25 @@ function getOrders(WP_REST_Request $request){
             
             $o['cancel_reason'] = '';
             $o['contact_email'] = $order->get_billing_email();
-            $o['note_attributes'] = array();
+
+            $o['note_attributes'] = array();  
+            $note_attribute = array();
+
+            $sales_cookie = $order->get_meta('_aio_shopify_ref');
+
+            if($sales_cookie){
+                $note_attribute[] = array('name' => 'aio_shopify_ref', 'value' => $sales_cookie);
+
+                $o['note_attributes'] = $note_attribute;
+            }
+
+            $affiliate_cookie = $order->get_meta('_aio_affiliate_code');
+
+            if($affiliate_cookie){
+                $note_attribute[] = array('name' => 'aio_affiliate_code', 'value' => $affiliate_cookie);
+
+                $o['note_attributes'] = $note_attribute;
+            }
 
             $line_items = array();
 
@@ -625,7 +811,7 @@ function getOrders(WP_REST_Request $request){
                 $i['sku'] = $product->get_sku();
                 $i['price'] = $product->get_price();
                 $i['total_discount'] = '';
-                $i['fulfillment_status'] = '';
+                $i['fulfillment_status'] = ($order->get_status() == 'completed') ? 'shipped' : 'unshipped';
                 $i['gift_card'] = false;
 
                 //echo '<pre>'; print_r($item); echo '</pre>';
@@ -677,7 +863,6 @@ function getOrders(WP_REST_Request $request){
             $o['shipping_lines']['delivery_category'] = null;
             $o['shipping_lines']['carrier_identifier'] = null;
             $o['shipping_lines']['discounted_price'] = null;
-            $o['shipping_lines']['carrier_identifier'] = $order->get_shipping_total();
             $o['shipping_lines']['tax_lines'] = array();
 
             $o['customer']['id'] = $order->get_customer_id();
@@ -704,9 +889,22 @@ function getOrders(WP_REST_Request $request){
                 $o['customer']['updated_at'] = $customer->get_date_modified()->date('Y-m-d H:i:s');
                 $o['customer']['verified_email'] = true;
 
-                $o['customer']['last_order_name'] = null;   // TODO update with order number
-                $o['customer']['last_order_id'] = null;    // TODO update with order ID
+                $last_order = $customer->get_last_order();
+               
 
+               if(!empty($last_order)){
+                    //echo '<pre>'; print_r($last_order); echo '</pre>';
+                    $last_order_id = $last_order->get_id();
+                    //echo '<br>last_order_id: '.$last_order_id;
+
+                    $o['customer']['last_order_name'] = $last_order_id;
+                    $o['customer']['last_order_id'] = $last_order_id;
+
+               }else{
+
+                    $o['customer']['last_order_name'] = null;
+                    $o['customer']['last_order_id'] = null;
+               }
 
                 $o['customer']['orders_count'] = $customer->get_order_count();
                 $o['customer']['total_spent'] = $customer->get_total_spent();
@@ -761,7 +959,40 @@ function getOrders(WP_REST_Request $request){
             }
 
             $o['fulfillments'] = array();
-            $o['refunds'] = array();
+
+            $order_refunds = $order->get_refunds();
+
+            //echo '<br>order_refunds: <pre>'; print_r($order_refunds); echo '</pre>';
+            //continue;
+
+            if($order_refunds){
+
+                $order_refund = $order_refunds[0];
+
+                $o['refunds']['id'] = $order_refund->get_id();
+                $o['refunds']['order_id'] = $order->get_id();
+                $o['refunds']['created_at'] = $order_refund->get_date_created()->date('Y-m-d H:i:s');
+                $o['refunds']['note'] = $order_refund->get_refund_reason();
+                $o['refunds']['user_id'] = $order->get_user_id();
+                $o['refunds']['processed_at'] = $order_refund->get_date_created()->date('Y-m-d H:i:s');
+                $o['refunds']['refund_line_items'] = $line_items;
+
+                $transactions['id'] = $order_refund->get_id();
+                $transactions['amount'] = $order_refund->get_amount();
+                $transactions['created_at'] = $order_refund->get_date_created()->date('Y-m-d H:i:s');
+                $transactions['currency'] = $order->get_currency();
+                $transactions['currency'] = $order->get_currency();
+                $transactions['order_id'] = $order->get_id();
+                $transactions['processed_at'] = $order_refund->get_date_created()->date('Y-m-d H:i:s');
+
+                $o['refunds']['transactions'] = $transactions;
+                $o['refunds']['order_adjustments'] = array();
+
+            }else{
+                $o['refunds'] = array();    
+            }
+
+            
             $o['fulfillment_status'] = ($order->get_status() == 'completed') ? 'shipped' : 'unshipped' ; 
             $o['financial_status'] = $order->get_status();
 
@@ -771,12 +1002,546 @@ function getOrders(WP_REST_Request $request){
 
         $return['result'] = true;
 
+        $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+        $log_message .= 'Get Order API: result_type row .'.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+        aitrillion_api_log($log_message);
+
         $response = new WP_REST_Response($return);
         $response->set_status(200);
 
         return $response;
     }
 
+}
+
+function getCategoryCollection(WP_REST_Request $request){
+
+    $params = $request->get_query_params();
+
+    if(!isset($params['id']) || empty($params['id'])){
+
+        $params['result_type'] = 'row';
+    }
+
+    $cat_id = $params['id'];
+
+    if(isset($params['limit']) && !empty($params['limit'])){
+        $limit = $params['limit'];
+    }else{
+        $limit = 10;
+    }
+
+    $args = array(
+        'post_type'             => 'product',
+        'post_status'           => 'publish',
+        'posts_per_page'        => $limit,
+        'tax_query'             => array(
+            array(
+                'taxonomy'      => 'product_cat',
+                'field' => 'term_id', //This is optional, as it defaults to 'term_id'
+                'terms'         => $cat_id,
+                'operator'      => 'IN' // Possible values are 'IN', 'NOT IN', 'AND'.
+            )
+        )
+    );
+
+    $products = new WP_Query($args);
+
+    $return = array();
+
+    foreach ($products->posts as $key => $post) {
+
+        $product = wc_get_product( $post->ID );
+
+        $p['id'] = $product->get_id();
+        $p['title'] = $product->get_title();
+        $p['body_html'] = $product->get_description();
+        $p['vendor'] = '';
+        $p['created_at'] = $product->get_date_created()->date('Y-m-d H:i:s');
+        $p['updated_at'] = $product->get_date_modified()->date('Y-m-d H:i:s');
+        $p['published_at'] = $p['created_at'];
+        $p['product_type'] = $product->get_type();
+        $p['handle'] = get_permalink( $product->get_id() );
+        $p['tags'] = '';
+        $p['published_scope'] = 'web';
+
+        $image_id        = $product->get_image_id();
+
+        $img = array();
+
+        if ( $image_id ) {
+            $image_url = wp_get_attachment_image_url( $image_id, 'full' );
+
+            $img[] = array('id' => $image_id, 'product_id' => $p['id'], 'src' => $image_url, 'position' => 1, 'created_at' => $p['created_at'], 'updated_at' => $p['updated_at']);
+        }
+
+        $attachment_ids  = $product->get_gallery_image_ids();
+
+        $position = 2;
+        foreach ( $attachment_ids as $attachment_id ) {
+            $image_url = wp_get_attachment_url( $attachment_id );
+
+            $img[] = array('id' => $attachment_id, 'product_id' => $p['id'], 'src' => $image_url, 'position' => $position, 'created_at' => $p['created_at'], 'updated_at' => $p['updated_at']);
+            $position++;
+        }
+
+        //$product_images['images']      = $img;
+
+        $p['images'] = $img;
+
+        //echo '<br>status: '.$product->get_type();
+
+        if($product->get_type() == 'variable'){
+
+            $available_variations = $product->get_available_variations();
+
+            //echo '<br>available_variations: <pre>'; print_r($available_variations); echo '</pre>';
+
+            $attributes = array();
+            $position = 1;
+
+            foreach ($available_variations as $key => $variations) 
+            { 
+                $a = array();
+                
+                //echo '<pre>'; print_r($variations); echo '</pre>';
+
+                $a['id'] = $variations['variation_id'];
+                $a['product_id'] = $p['id'];
+                $a['price'] =  $variations['display_regular_price'];
+                $a['compare_at_price'] = $variations['display_price'];  // sale price
+                $a['sku'] = $variations['sku'];
+                $a['position'] = $position;
+                $a['inventory_quantity'] = $variations['max_qty'];
+                $a['image_id'] = $variations['image_id'];
+                $a['created_at'] = $p['created_at'];
+                $a['updated_at'] = $p['updated_at'];
+                
+
+                //echo '<pre>'; print_r($variations['attributes']); echo '</pre>';
+
+                foreach($variations['attributes'] as $key => $val){
+
+                    if(isset($val) && !empty($val)){
+
+                        //echo '<br>key: '.$key;
+
+                        $option_name = substr($key, 9); // $key is attribute_pa_* or attribute_*
+
+                        $a['title'] = $option_name;
+
+                        //echo '<br>key: '.$option_name.', Val: '.$val;
+
+                        $a['option1'] = $val;
+                    }
+
+                }
+
+                $position++;
+
+                $attributes[] = $a;
+
+            }
+
+            $p['variants'] = $attributes;
+
+        }else{
+
+            $a['id'] = $p['id'];
+            $a['product_id'] = $p['id'];
+            $a['title'] = $p['title'];
+            $a['price'] = $product->get_regular_price();
+            $a['compare_at_price'] = $product->get_sale_price();
+            $a['sku'] = $product->get_sku();
+            $a['position'] = 1;
+            $a['option1'] = '';
+            $a['inventory_quantity'] = $product->get_stock_quantity();
+            $a['image_id'] = $image_id;
+            $a['created_at'] = $p['created_at'];
+            $a['updated_at'] = $p['updated_at'];
+
+            $p['variants'][] = $a;
+        }
+
+        $return['products'][] = $p;
+
+    }
+
+    //echo '<br>products: <pre>'; print_r($return); echo '</pre>';
+
+    //exit;
+
+    $return['result'] = true;
+
+    $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+    $log_message .= 'Get Product By Category API: result_type row .'.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+    aitrillion_api_log($log_message);
+
+    $response = new WP_REST_Response($return);
+    $response->set_status(200);
+
+    return $response;
+
+    //var_dump($products);
+
+}
+
+function searchCategory(WP_REST_Request $request){
+
+    $params = $request->get_query_params();
+
+    $cat_name = $params['title'];
+
+    $args['taxonomy'] = 'product_cat';
+    $args['hide_empty'] = 0;
+    $args['name__like'] = $cat_name;
+
+    $categories = get_categories($args);
+
+    //echo '<pre>'; print_r($categories); echo '</pre>';
+
+    $return = array();
+
+    global $title;
+
+    foreach($categories as $category){
+
+        $cat['id'] = $category->term_id;
+        $cat['handle'] = get_term_link( $category->term_id, 'product_cat' );
+        $cat['body_html'] = $category->description;
+        $cat['updated_at'] = '';
+        $cat['published_at'] = '';
+        $cat['product_count'] = $category->category_count;
+
+        $name = array();
+
+        if($category->parent > 0){
+            $name = hierarchical_category_tree($category->parent);
+        }
+
+        $name[] = $category->name;
+
+        $cat['title'] = implode(' > ', $name);
+
+        $title = array();
+
+        $return[]['collections'] = $cat;
+    }
+
+    //$return['result'] = true;
+
+    $log_message = '------------------------'.date('Y-m-d H:i:s').'----------------------------------'.PHP_EOL;
+    $log_message .= 'Category search API: '.PHP_EOL.'params: '.print_r($params, true).PHP_EOL.'response: '.print_r($return, true);
+
+    //aitrillion_api_log($log_message);
+
+    $response = new WP_REST_Response($return);
+    $response->set_status(200);
+
+    return $response;
+}
+
+//$title = array();
+function hierarchical_category_tree( $cat ) {
+
+    global $title;
+
+        $args['taxonomy'] = 'product_cat';
+        $args['hide_empty'] = 0;
+        $args['term_taxonomy_id'] = $cat;
+
+        $categories = get_categories($args);
+
+        foreach($categories as $category){
+
+            $title[] = $category->name;
+
+            //echo '<br>parent category name: '.$category->name.' parent: '.$category->parent;
+
+            if($category->parent > 0){
+                return hierarchical_category_tree($category->parent);
+            }else{
+                return array_reverse($title);
+            }
+        }
+}
+
+function updateScriptVersion(){
+
+    $script_version = get_option('_aitrillion_script_version');
+
+    if(empty($script_version)){
+        $script_version = 1;
+    }else{
+        $script_version++;    
+    }
+
+    update_option('_aitrillion_script_version', $script_version);
+
+    $return['result'] = false;
+    $return['script_version'] = $script_version;
+
+
+    $log_message = 'Script version updated '.$script_version.PHP_EOL;
+
+    aitrillion_api_log($log_message);
+
+    echo json_encode($return);
+    exit;
+
+}
+
+function blockLoyaltyMember(WP_REST_Request $request){
+
+    $params = $request->get_query_params();
+
+    $member_ids = $params['member_ids'];
+
+    update_option('_aitrillion_block_loyalty_members', $member_ids);
+
+    $return['result'] = false;
+    $return['message'] = 'ID Updated';
+
+    $log_message = 'Loyalty block member updated '.$member_ids.PHP_EOL;
+
+    aitrillion_api_log($log_message);
+
+    echo json_encode($return);
+    exit;
+
+}
+
+function abandonedcart(WP_REST_Request $request){
+
+    $params = $request->get_query_params();
+
+    $cart_id = $params['quoteid'];
+
+    //echo '<br>cart id: '.$cart_id;
+
+    global $wpdb;
+
+    $order_sessions = $wpdb->get_results( "SELECT * FROM ". $wpdb->prefix."woocommerce_sessions");
+
+    $items = array();
+
+    foreach ( $order_sessions as $order ) {
+
+        $session_value = unserialize($order->session_value);
+
+        if(isset($session_value['cart_id']) && $session_value['cart_id'] == $cart_id){
+
+            $cart = unserialize($session_value['cart']);
+
+            if(is_array($cart) && !empty($cart)){
+
+                $i = 1;
+
+                foreach($cart as $key => $cart_item){
+
+                    //echo '<pre>'; print_r($cart_item); echo '</pre>';
+
+                    $line_item['id'] = $i;
+                    $line_item['product_id'] = $cart_item['product_id'];
+
+                    if(empty($cart_item['variation_id'])){
+                        $line_item['variant_id'] = $cart_item['product_id'];
+
+                        $product = wc_get_product( $cart_item['product_id'] );
+                    }else{
+                        $line_item['variant_id'] = $cart_item['variation_id'];
+
+                        $product = wc_get_product( $cart_item['variation_id'] );
+                    }
+
+                    $line_item['quantity'] = $cart_item['quantity'];
+
+                    $line_item['name'] = $product->get_name();
+                    $line_item['title'] = $product->get_name();
+                    $line_item['sku'] = $product->get_sku();
+                    $line_item['price'] = $product->get_price();
+                    $line_item['url'] = get_permalink( $product->get_id() );
+
+                    $image_id        = $product->get_image_id();
+
+                    $img = array();
+
+                    if ( $image_id ) {
+                        $image_url = wp_get_attachment_image_url( $image_id, 'full' );
+
+                        $line_item['image'] = $image_url;
+                    }else{
+                        $line_item['image'] = '';
+                    }
+
+                    $items[] = $line_item;
+
+                    $line_item = array();
+                    $i++;
+                }
+
+                $data['token'] = $cart_id;
+                $data['item_count'] = $i-1;
+                $data['items'] = $items;
+
+                //echo json_encode($data);
+                //exit;
+
+                $response = new WP_REST_Response($data);
+                $response->set_status(200);
+
+                return $response;
+
+            }
+        }
+        
+    }
+
+    if(!isset($i) && empty($i)){
+
+        $return['result'] = false;
+        $return['message'] = 'No data found';
+
+        $response = new WP_REST_Response($return);
+        $response->set_status(200);
+
+        return $response;
+    }
+
+}
+
+function createCoupon(WP_REST_Request $request){
+
+    //$params = $request->get_query_params();
+
+    $body = $request->get_body();
+
+    //echo '<br>body: <pre>'; print_r($body); echo '</pre>';
+
+    $params = json_decode($body);
+
+    //echo '<br>params: <pre>'; print_r($params); echo '</pre>';
+
+    //echo '<br>'.json_encode($params);
+
+    //exit;
+
+    $coupon = new WC_Coupon();
+
+    if(isset($params->coupon_code) && !empty($params->coupon_code)){
+        $code = $params->coupon_code;
+        $coupon->set_code( $params->coupon_code );
+    }else{
+        $code = random_strings(8);
+        $coupon->set_code( $code );
+    }
+    
+    if(isset($params->coupon_description) && !empty($params->coupon_description)){
+        $coupon->set_description( $params->coupon_description );    
+    }
+
+    //exit;
+
+    // discount type can be 'fixed_cart', 'percent' or 'fixed_product', defaults to 'fixed_cart'
+    $coupon->set_discount_type( $params->discount_type );
+
+    // discount amount
+    $coupon->set_amount( $params->discount_amount );
+
+    if(isset($params->allow_free_shipping) && !empty($params->allow_free_shipping)){
+        // allow free shipping
+        $coupon->set_free_shipping( true );
+    }
+
+    if(isset($params->coupon_expiry) && !empty($params->coupon_expiry)){
+        // coupon expiry date
+        $coupon->set_date_expires( $params->coupon_expiry );    
+    }
+
+    if(isset($params->cart_minimum_amount) && !empty($params->cart_minimum_amount)){
+        // minimum spend
+        $coupon->set_minimum_amount( $params->cart_minimum_amount );  
+    }
+
+    if(isset($params->cart_maximum_amount) && !empty($params->cart_maximum_amount)){
+        // maximum spend
+        $coupon->set_maximum_amount( $params->cart_maximum_amount );
+    }
+
+    if(isset($params->is_individual_use) && !empty($params->is_individual_use)){
+        // individual use only
+        $coupon->set_individual_use( $params->is_individual_use );
+    }
+
+    if(isset($params->product_ids) && !empty($params->product_ids)){
+        // products
+        $products = explode(',', $params->product_ids);
+        $coupon->set_product_ids( $products );
+    }    
+
+    if(isset($params->exclude_product_ids) && !empty($params->exclude_product_ids)){
+        $exclude_products = explode(',', $params->exclude_product_ids);
+
+        // exclude products
+        $coupon->set_excluded_product_ids( $exclude_products );
+    } 
+
+    if(isset($params->uses_limit) && !empty($params->uses_limit)){
+        // usage limit per coupon
+        $coupon->set_usage_limit( $params->uses_limit );
+    }
+
+    if(isset($params->per_user_limit) && !empty($params->per_user_limit)){
+        // usage limit per user
+        $coupon->set_usage_limit_per_user( $params->per_user_limit );
+    }    
+
+    if(isset($params->user_id) && !empty($params->user_id)){
+
+        $user_info = get_userdata($params->user_id);
+
+        //echo '<pre>'; print_r($user_info->user_email); echo '</pre>';
+
+        if($user_info){
+
+            //echo '<pre>'; print_r($user_info->user_email); echo '</pre>';
+
+            // allowed emails
+            $coupon->set_email_restrictions( 
+                array( 
+                    $user_info->user_email
+                )
+            );     
+        }
+    }
+    
+
+    $coupon->save();
+
+    $return['result'] = true;
+    $return['coupon_codes'] = array($code);
+
+    $response = new WP_REST_Response($return);
+    $response->set_status(200);
+
+    return $response;
+
+    //echo '<br>coupon created';
+
+}
+
+// This function will return a random
+// string of specified length
+function random_strings($length_of_string)
+{
+    // String of all alphanumeric character
+    $str_result = '123456789ABCDEFGHIJKLMNPQRSTUVWXYZ';
+
+    // Shuffle the $str_result and returns substring
+    // of specified length
+    return substr(str_shuffle($str_result), 0, $length_of_string);
 }
 
 ?>
