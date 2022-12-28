@@ -1,19 +1,15 @@
 <?php 
 
 /**
- * Plugin Name:       Ai Trillion
+ * Plugin Name:       AiTrillion
  * Plugin URI:        https://www.aitrillion.com/
- * Description:       Ai Trillion Integration
+ * Description:       AiTrillion Integration
  * Version:           1.0
  * Requires at least: 5.2
  * Requires PHP:      7.4
- * Author:            Ai Trillion
- * Author URI:        https://www.aitrillion.com/
+ * Author:            AiTrillion
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Update URI:        https://www.aitrillion.com/
- * Text Domain:       ai-trillion
- * Domain Path:       /languages
  */
 
 if (!defined('ABSPATH')) {
@@ -35,16 +31,15 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
     include_once $woocommerce_plugin_path;   // Include woocommerce library
 
     // Defines the path to the main plugin file.
-    define( 'AIT_FILE', __FILE__ );
+    define( 'AITRILLION_FILE', __FILE__ );
 
     // Defines the path to be used for includes.
-    define( 'AIT_PATH', plugin_dir_path( AIT_FILE ) );
+    define( 'AITRILLION_PATH', plugin_dir_path( AITRILLION_FILE ) );
 
     // Defines the URL to the plugin.
-    define( 'AIT_URL', plugin_dir_url( AIT_FILE ) );
+    define( 'AITRILLION_URL', plugin_dir_url( AITRILLION_FILE ) );
 
     // Define end point of Ai Trillion 
-    //define('AITRILLION_END_POINT', 'https://connector-api-dev.aitrillion.com/dev/');
     define('AITRILLION_END_POINT', 'https://connector-api-dev.aitrillion.com/');
     define('AITRILLION_APP_NAME', 'Aitrillion Wordpress');
 
@@ -52,11 +47,11 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
     define('DOMAIN', $domain);
 
-    include AIT_PATH . 'common_functions.php';
-    include AIT_PATH . 'cron-jobs.php';
-    include AIT_PATH . 'platform_api.php';
-    include AIT_PATH . 'data_sync.php';
-    include AIT_PATH . 'shortcodes.php';
+    include AITRILLION_PATH . 'common_functions.php';
+    include AITRILLION_PATH . 'cron-jobs.php';
+    include AITRILLION_PATH . 'platform_api.php';
+    include AITRILLION_PATH . 'data_sync.php';
+    include AITRILLION_PATH . 'shortcodes.php';
 
         // add the admin options page
         
@@ -97,8 +92,8 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
         function aitrillion_admin_init(){
 
-            register_setting( 'aitrillion_options', '_aitrillion_api_key' );
-            register_setting( 'aitrillion_options', '_aitrillion_api_password' );
+            register_setting( 'aitrillion_options', '_aitrillion_api_key');
+            register_setting( 'aitrillion_options', '_aitrillion_api_password');
             register_setting( 'aitrillion_options', '_aitrillion_script_url' );
             register_setting( 'aitrillion_options', '_aitrillion_affiliate_module' );
 
@@ -114,9 +109,12 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
                 <form method="post" action="options.php">
 
+                    <?php settings_errors('aitrillion_options'); ?>
+
                     <?php settings_fields( 'aitrillion_options' ); ?>
 
                     <?php do_settings_sections( 'aitrillion_options' ); ?>
+
                     <table class="form-table">
                         <tr valign="top">
                         <th scope="row">AiTrillion API Key</th>
@@ -133,7 +131,8 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                         <tr valign="top">
                         <th scope="row">AiTrillion script URL</th>
                         <td>
-                            <input type="text" name="_aitrillion_script_url" value="<?php echo esc_attr( get_option('_aitrillion_script_url') ); ?>" />
+                            
+                            <textarea rows="5" cols="50" name="_aitrillion_script_url"><?php echo esc_attr( get_option('_aitrillion_script_url') ); ?></textarea>
                         </td>
                         </tr>
 
@@ -145,6 +144,57 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                             <input type="checkbox" name="_aitrillion_affiliate_module" value="1" <?=$checked?> />
                         </td>
                         </tr>
+
+                        <?php 
+
+                            $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
+                            $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
+
+                            if($_aitrillion_api_key && $_aitrillion_api_password){
+                        ?>
+
+                        <tr>
+                            <th scope="row">AiTrillion connection</th>
+                            <td>
+                                <?php 
+
+                                    $domain = preg_replace("(^https?://)", "", site_url() );
+
+                                    $url = AITRILLION_END_POINT.'validate?shop_name='.$domain;
+
+                                    $response = wp_remote_get( $url, array(
+                                        'headers' => array(
+                                            'Authorization' => 'Basic ' . base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password )
+                                        )
+                                    ));
+
+                                    $r = json_decode($response['body']);
+
+                                    if(isset($r->status) && $r->status == 'sucess'){
+
+                                        echo '<strong style="color: green">Active</strong>';
+
+                                    }else{
+
+                                        echo '<strong style="color: red">In-active</strong>';
+
+                                        if(isset($r->status) && $r->status == 'error'){
+
+                                             echo ' <strong style="color: red">('.$r->msg.')</strong>';
+
+                                        }elseif(isset($r->message)){
+
+                                            echo ' <strong style="color: red">('.$r->message.')</strong>';
+                                        }
+
+                                    }
+                                ?>
+                            </td>
+                        </tr>
+
+                        <?php 
+                            }
+                        ?>
                     </table>
                     
                     <?php submit_button(); ?>
@@ -166,78 +216,47 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                 <table width="80%">
                     <tr>
                         <td><strong>List review + Write a review section</strong></td>
-                        <td>[ait_list_review]</td>
+                        <td>[aitrillion_list_review]</td>
                     </tr>
 
                     <tr>
                         <td><strong>Product Featured Review Shortcode</strong></td>
-                        <td>[ait_product_featured_reviews]</td>
+                        <td>[aitrillion_product_featured_reviews]</td>
                     </tr>
 
                     <tr>
                         <td><strong>Site Reviews Shortcode</strong></td>
-                        <td>[ait_site_reviews]</td>
+                        <td>[aitrillion_site_reviews]</td>
                     </tr>
 
                     <tr>
                         <td><strong>New Arrivals Shortcode</strong></td>
-                        <td>[ait_new_arrival]</td>
+                        <td>[aitrillion_new_arrival]</td>
                     </tr>
 
                     <tr>
                         <td><strong>Trending Product Shortcode</strong></td>
-                        <td>[ait_trending_product]</td>
+                        <td>[aitrillion_trending_product]</td>
                     </tr>
 
                     <tr>
                         <td><strong>Recent View Shortcode</strong></td>
-                        <td>[ait_recent_view]</td>
+                        <td>[aitrillion_recent_view]</td>
                     </tr>
 
                     <tr>
                         <td><strong>Affiliate Shortcode</strong></td>
-                        <td>[ait_affiliate]</td>
+                        <td>[aitrillion_affiliate]</td>
                     </tr>
 
                     <tr>
                         <td><strong>Loyalty Shortcode</strong></td>
-                        <td>[ait_loyalty]</td>
+                        <td>[aitrillion_loyalty]</td>
                     </tr>
 
                 </table>
             </div>
         <?php
-        }
-
-        add_action('updated_option', 'validate_api_key', 10, 3);
-
-        function validate_api_key($option_name, $old_value, $value){
-
-            if($option_name == '_aitrillion_api_key' || $option_name == '_aitrillion_api_password'){
-
-                $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
-                $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
-
-                $domain = preg_replace("(^https?://)", "", site_url() );
-
-                $url = AITRILLION_END_POINT.'validate?shop_name='.$domain;
-
-                $response = wp_remote_get( $url, array(
-                    'headers' => array(
-                        'Authorization' => 'Basic ' . base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password )
-                    )
-                ));
-
-                $r = json_decode($response['body']);
-
-                aitrillion_api_log('Validate key api '.$url.PHP_EOL.print_r($r, true));
-
-                if(isset($response->status) && $response->status == 'sucess'){
-                    update_option('_aitrillion_valid_key', 'true');
-                }else{
-                    update_option('_aitrillion_valid_key', 'false');
-                }
-            }
         }
 
         add_action('woocommerce_thankyou', 'aitrillion_aff_tracking_code', 10, 1);
@@ -248,23 +267,21 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
             if(isset($_COOKIE['aio_shopify_ref'])){
                 $order = wc_get_order( $order_id );
-                $order->update_meta_data( '_aio_shopify_ref', $_COOKIE['aio_shopify_ref'] );
+                $order->update_meta_data( '_aio_shopify_ref', sanitize_text_field($_COOKIE['aio_shopify_ref']) );
                 $order->save();
             }
 
             if(isset($_COOKIE['aio_affiliate_code'])){
                 $order = wc_get_order( $order_id );
-                $order->update_meta_data( '_aio_affiliate_code', $_COOKIE['aio_affiliate_code'] );
+                $order->update_meta_data( '_aio_affiliate_code', sanitize_text_field($_COOKIE['aio_affiliate_code']) );
                 $order->save();
             }
         }
 
-        add_action('woocommerce_add_to_cart', 'ait_generate_cart_id');
-        function ait_generate_cart_id() {
+        add_action('woocommerce_add_to_cart', 'aitrillion_generate_cart_id');
+        function aitrillion_generate_cart_id() {
             
             $cart_id = WC()->session->get('cart_id');
-
-            //echo '<br>cart_id: '.$cart_id;
 
             if( is_null($cart_id) ) {
 
@@ -274,10 +291,6 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
                 // set a cookie for 1 year
                 setcookie('quoteid', $cart_id, time()+31556926);
-
-                //$cart_id = WC()->session->get('cart_id');
-
-                //echo '<br>new_cart: '.$cart_id;
             }
         }
 
@@ -289,8 +302,6 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                 return;
 
             $cart_id = WC()->session->get('cart_id');
-
-            //echo '<br>cart_id: '.$cart_id;
 
             if( !is_null($cart_id) ) {
 

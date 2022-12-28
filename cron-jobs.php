@@ -30,11 +30,9 @@ add_action( 'aitrillion_data_sync_schedule', 'aitrillion_data_sync_action' );
 
 function aitrillion_data_sync_action() { 
 
-    echo '<br>cron called';
-
-    sync_new_users();
-    sync_updated_users();  
-    sync_deleted_users();  
+    sync_new_customers();
+    sync_updated_customers();  
+    sync_deleted_customers();  
 
     sync_new_products();
     sync_updated_products();  
@@ -47,15 +45,18 @@ function aitrillion_data_sync_action() {
 }
 
 
-function sync_new_users(){
+function sync_new_customers(){
     
     $users = get_option( '_aitrillion_created_users' );
 
     aitrillion_api_log('new user sync log '.print_r($users, true).PHP_EOL);
 
+    $failed_sync_users = array();
+
     if(!empty($users)){
 
         $users = array_unique($users);
+        $synced_users = array();
 
         foreach($users as $user_id){
 
@@ -70,21 +71,32 @@ function sync_new_users(){
             $c['last_name'] = $customer->get_last_name();
             $c['email'] = $customer->get_email();
             $c['verified_email'] = true;
-            $c['accepts_marketing'] = false;
+            $c['accepts_marketing'] = true;
             $c['phone'] = $customer->get_billing_phone();
             $c['created_at'] = $customer->get_date_created()->date('Y-m-d H:i:s');
 
             if($customer->get_date_modified()){
                 $c['updated_at'] = $customer->get_date_modified()->date('Y-m-d H:i:s');
             }else{
-                $c['updated_at'] = null;
+                $c['updated_at'] = $customer->get_date_created()->date('Y-m-d H:i:s');
             }
 
             $c['orders_count'] = $customer->get_order_count();
             $c['total_spent'] = $customer->get_total_spent();
 
-            $c['last_order_name'] = null;    // TODO update with order number
-            $c['last_order_id'] = null;    // TODO update with order ID
+            $last_order = $customer->get_last_order();
+
+            if(!empty($last_order)){
+
+                $last_order_id = $last_order->get_id();
+
+                $c['last_order_name'] = $last_order_id;
+                $c['last_order_id'] = $last_order_id;
+
+            }else{
+                $c['last_order_name'] = null;
+                $c['last_order_id'] = null;
+            }
 
             $c['currency'] = null;
             $c['note'] = null;
@@ -104,25 +116,12 @@ function sync_new_users(){
             
             $json_payload = json_encode($c);
 
-            //aitrillion_api_log('customer json_payload '.$json_payload.PHP_EOL);
-
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
             $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
 
             $bearer = base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password );
 
-            //aitrillion_api_log('customer bearer '.$bearer.PHP_EOL);
-
-            //echo '<br>bearer: '.$bearer;
-
-            //echo '<br>'.$json_payload;
-
-            $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
-            $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
-
             $url = AITRILLION_END_POINT.'customers/create';
-
-            //aitrillion_api_log('customer add end point '.$url.PHP_EOL);
 
             $response = wp_remote_post( $url, array(
                 'headers' => array(
@@ -131,34 +130,60 @@ function sync_new_users(){
                 'body' => $json_payload
             ));
 
-            //aitrillion_api_log('API Response : '.print_r($response, true).PHP_EOL);
-
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
-
-            //exit;
-
             $r = json_decode($response['body']);
 
-            update_user_meta($user_id, '_aitrillion_user_sync', 'true');
+            if(!isset($r->status) && $r->status != 'success'){
+                $failed_sync_users_data[$user_id][] = array('user_id' => $user_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_users[] = $user_id;
+            }else{
+                update_user_meta($user_id, '_aitrillion_user_sync', 'true');
+                $synced_users[] = $user_id;
+            }
 
             aitrillion_api_log('API Response for user id: '.$user_id.PHP_EOL.print_r($r, true));
         }
 
-        delete_option('_aitrillion_created_users');
-    }
+        if(!empty($failed_sync_users)){
 
-    
+            update_option('_aitrillion_created_users', $failed_sync_users);
+            update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
+
+        }else{
+
+            $previous_failed_users = get_option( '_aitrillion_failed_sync_users' );
+
+            aitrillion_api_log('previous_failed_users: '.PHP_EOL.print_r($previous_failed_users, true));
+
+            if($previous_failed_users){
+                foreach($previous_failed_users as $u => $user){
+                    if(in_array($u, $synced_users)){
+                        unset($previous_failed_users[$u]);
+                    }
+                }
+
+                aitrillion_api_log('after unset syned users: '.PHP_EOL.print_r($previous_failed_users, true));
+
+                update_option('_aitrillion_failed_sync_users', $previous_failed_users);
+            }
+
+            delete_option('_aitrillion_created_users');    
+        }
+    }
 }
 
-function sync_updated_users(){
+function sync_updated_customers(){
 
     $users = get_option( '_aitrillion_updated_users' );
 
     aitrillion_api_log('udpated users sync log '.print_r($users, true).PHP_EOL);
 
+    $failed_sync_users = array();
+
     if(!empty($users)){
 
         $users = array_unique($users);
+
+        $synced_users = array();
 
         foreach($users as $user_id){
 
@@ -173,21 +198,33 @@ function sync_updated_users(){
             $c['last_name'] = $customer->get_last_name();
             $c['email'] = $customer->get_email();
             $c['verified_email'] = true;
-            $c['accepts_marketing'] = false;
+            $c['accepts_marketing'] = true;
             $c['phone'] = $customer->get_billing_phone();
             $c['created_at'] = $customer->get_date_created()->date('Y-m-d H:i:s');
 
             if($customer->get_date_modified()){
                 $c['updated_at'] = $customer->get_date_modified()->date('Y-m-d H:i:s');
             }else{
-                $c['updated_at'] = null;
+                $c['updated_at'] = $customer->get_date_created()->date('Y-m-d H:i:s');
             }
 
             $c['orders_count'] = $customer->get_order_count();
             $c['total_spent'] = $customer->get_total_spent();
 
-            $c['last_order_name'] = null;    // TODO update with order number
-            $c['last_order_id'] = null;    // TODO update with order ID
+            $last_order = $customer->get_last_order();
+
+            if(!empty($last_order)){
+                //echo '<pre>'; print_r($last_order); echo '</pre>';
+                $last_order_id = $last_order->get_id();
+                //echo '<br>last_order_id: '.$last_order_id;
+
+                $c['last_order_name'] = $last_order_id;
+                $c['last_order_id'] = $last_order_id;
+
+            }else{
+                $c['last_order_name'] = null;
+                $c['last_order_id'] = null;
+            }
 
             $c['currency'] = null;
             $c['note'] = null;
@@ -211,10 +248,6 @@ function sync_updated_users(){
             $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
 
             $bearer = base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password );
-
-            //echo '<br>bearer: '.$bearer;
-
-            //echo '<br>'.$json_payload;
 
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
             $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
@@ -230,17 +263,45 @@ function sync_updated_users(){
 
             $r = json_decode($response['body']);
 
-            update_user_meta($user_id, '_aitrillion_user_sync', 'true');
+            if(!isset($r->status) && $r->status != 'success'){
+                $failed_sync_users_data[$user_id][] = array('user_id' => $user_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_users[] = $user_id;
+            }else{
+                update_user_meta($user_id, '_aitrillion_user_sync', 'true');
+                $synced_users[] = $user_id;
+            }
 
             aitrillion_api_log('API Response for user id: '.$user_id.PHP_EOL.print_r($r, true));
         }
     }
 
-    delete_option('_aitrillion_updated_users');
+    if(!empty($failed_sync_users)){
+        update_option('_aitrillion_updated_users', $failed_sync_users);
+        update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
+    }else{
+
+        $previous_failed_users = get_option( '_aitrillion_failed_sync_users' );
+
+        aitrillion_api_log('previous_failed_users: '.PHP_EOL.print_r($previous_failed_users, true));
+
+        if($previous_failed_users){
+            foreach($previous_failed_users as $u => $user){
+                if(in_array($u, $synced_users)){
+                    unset($previous_failed_users[$u]);
+                }
+            }
+
+            aitrillion_api_log('after unset syned users: '.PHP_EOL.print_r($previous_failed_users, true));
+
+            update_option('_aitrillion_failed_sync_users', $previous_failed_users);
+        }
+
+        delete_option('_aitrillion_updated_users');    
+    }
 }
 
 
-function sync_deleted_users(){
+function sync_deleted_customers(){
 
     $deleted_users = get_option( '_aitrillion_deleted_users' );
 
@@ -273,8 +334,6 @@ function sync_deleted_users(){
                 'body' => $json_payload
             ));
 
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
-
             $r = json_decode($response['body']);
 
             aitrillion_api_log('API Response for user id: '.$user_id.PHP_EOL.print_r($r, true));
@@ -299,8 +358,6 @@ function sync_new_products(){
         foreach($products as $product_id){
 
             $product = wc_get_product( $product_id );
-
-            //echo '<br>product: <pre>'; print_r($product); echo '</pre>';
 
             $p['id'] = $product->get_id();
             $p['title'] = $product->get_title();
@@ -333,8 +390,6 @@ function sync_new_products(){
             if($product->get_type() == 'variable'){
 
                 $available_variations = $product->get_available_variations();
-
-                //echo '<br>available_variations: <pre>'; print_r($available_variations); echo '</pre>';
 
                 $attributes = array();
 
@@ -371,20 +426,15 @@ function sync_new_products(){
                     $a['old_inventory_quantity'] = null;
                     $a['presentment_prices'] = null;
                     $a['requires_shipping'] = $product->get_virtual() ? false : true;
-
-                    //echo '<pre>'; print_r($variations['attributes']); echo '</pre>';
+                    
                     $option_count = 1;
                     foreach($variations['attributes'] as $key => $val){
 
                         if(isset($val) && !empty($val)){
 
-                            //echo '<br>key: '.$key;
-
                             $option_name = substr($key, 9); // $key is attribute_pa_* or attribute_*
 
                             $a['title'] = $option_name;
-
-                            //echo '<br>key: '.$option_name.', Val: '.$val;
 
                             $a['option'.$option_count] = $val;
 
@@ -476,21 +526,13 @@ function sync_new_products(){
                 $position++;
             }
 
-            //$product_images['images']      = $img;
-
             $p['images'] = $img;
 
-            //echo '<br>status: '.$product->get_type();
-
             $p['options'] = array();    
-
-            //echo '<pre>'; print_r($p); echo '</pre>';
 
             aitrillion_api_log('Product: '.$p.PHP_EOL);
 
             $json_payload = json_encode($p);
-
-            //echo '<pre>'; print_r($json_payload); echo '</pre>';
 
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
             $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
@@ -509,17 +551,11 @@ function sync_new_products(){
                 'body' => $json_payload
             ));
 
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
-
-            //exit;
-
             $r = json_decode($response['body']);
 
             update_post_meta($product_id, '_aitrillion_product_sync', 'true');
 
             aitrillion_api_log('API Response for product id: '.$product_id.PHP_EOL.print_r($r, true));
-
-            //exit;
         }
 
         delete_option('_aitrillion_created_products');
@@ -540,8 +576,6 @@ function sync_updated_products(){
         foreach($products as $product_id){
 
             $product = wc_get_product( $product_id );
-
-            //echo '<br>product: <pre>'; print_r($product); echo '</pre>';
 
             $p['id'] = $product->get_id();
             $p['title'] = $product->get_title();
@@ -574,8 +608,6 @@ function sync_updated_products(){
             if($product->get_type() == 'variable'){
 
                 $available_variations = $product->get_available_variations();
-
-                //echo '<br>available_variations: <pre>'; print_r($available_variations); echo '</pre>';
 
                 $attributes = array();
 
@@ -613,19 +645,14 @@ function sync_updated_products(){
                     $a['presentment_prices'] = null;
                     $a['requires_shipping'] = $product->get_virtual() ? false : true;
 
-                    //echo '<pre>'; print_r($variations['attributes']); echo '</pre>';
                     $option_count = 1;
                     foreach($variations['attributes'] as $key => $val){
 
                         if(isset($val) && !empty($val)){
 
-                            //echo '<br>key: '.$key;
-
                             $option_name = substr($key, 9); // $key is attribute_pa_* or attribute_*
 
                             $a['title'] = $option_name;
-
-                            //echo '<br>key: '.$option_name.', Val: '.$val;
 
                             $a['option'.$option_count] = $val;
 
@@ -717,21 +744,13 @@ function sync_updated_products(){
                 $position++;
             }
 
-            //$product_images['images']      = $img;
-
             $p['images'] = $img;
 
-            //echo '<br>status: '.$product->get_type();
-
             $p['options'] = array();    
-
-            //echo '<pre>'; print_r($p); echo '</pre>';
 
             aitrillion_api_log('Product: '.$p.PHP_EOL);
 
             $json_payload = json_encode($p);
-
-            //echo '<pre>'; print_r($json_payload); echo '</pre>';
 
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
             $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
@@ -750,17 +769,11 @@ function sync_updated_products(){
                 'body' => $json_payload
             ));
 
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
-
-            //exit;
-
             $r = json_decode($response['body']);
 
             update_post_meta($product_id, '_aitrillion_product_sync', 'true');
 
             aitrillion_api_log('API Response for product id: '.$product_id.PHP_EOL.print_r($r, true));
-
-            //exit;
         }
 
         delete_option('_aitrillion_updated_products');
@@ -783,8 +796,6 @@ function sync_deleted_products(){
 
             if( get_post_type( $post_id ) != 'product' ) return;
 
-            //echo 'product delted';
-
             $json_payload = json_encode(array('id' => $post_id));
 
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
@@ -803,8 +814,6 @@ function sync_deleted_products(){
                         ),
                 'body' => $json_payload
             ));
-
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
 
             $r = json_decode($response['body']);
 
@@ -930,8 +939,6 @@ function sync_new_orders(){
 
             foreach ( $order->get_items() as $item_id => $item ) {
 
-                //echo '<br>item id: '.$item_id;
-
                 $i['id'] = $item_id;
 
                 $product = $item->get_product(); 
@@ -946,8 +953,6 @@ function sync_new_orders(){
                 $i['total_discount'] = '';
                 $i['fulfillment_status'] = ($order->get_status() == 'completed') ? 'shipped' : 'unshipped';
                 $i['gift_card'] = false;
-
-                //echo '<pre>'; print_r($item); echo '</pre>';
 
                 $line_items[] = $i;
             }
@@ -1005,10 +1010,6 @@ function sync_new_orders(){
             $customer_id = $order->get_customer_id();
             $user_id = $order->get_user_id();
 
-            //echo '<br>customer id: '.$customer_id;
-            //echo '<br>user id: '.$user_id;
-            
-
             $o['customer']['guest'] = $order->get_user_id() == 0 ? 'yes' : 'no';
 
             $o['customer']['phone'] = $order->get_billing_phone();
@@ -1028,8 +1029,19 @@ function sync_new_orders(){
                 
                 $o['customer']['verified_email'] = true;
 
-                $o['customer']['last_order_name'] = null;   // TODO update with order number
-                $o['customer']['last_order_id'] = null;    // TODO update with order ID
+                $last_order = $customer->get_last_order();
+
+                if(!empty($last_order)){
+                    
+                    $last_order_id = $last_order->get_id();
+
+                    $o['customer']['last_order_name'] = $last_order_id;
+                    $o['customer']['last_order_id'] = $last_order_id;
+
+                }else{
+                    $o['customer']['last_order_name'] = null;
+                    $o['customer']['last_order_id'] = null;
+                }
 
 
                 $o['customer']['orders_count'] = $customer->get_order_count();
@@ -1061,8 +1073,8 @@ function sync_new_orders(){
                 $o['customer']['updated_at'] = '';
                 $o['customer']['verified_email'] = false;
 
-                $o['customer']['last_order_name'] = null;   // TODO update with order number
-                $o['customer']['last_order_id'] = null;    // TODO update with order ID
+                $o['customer']['last_order_name'] = null;
+                $o['customer']['last_order_id'] = null;
 
                 $o['customer']['orders_count'] = 0;
                 $o['customer']['total_spent'] = 0;
@@ -1087,9 +1099,6 @@ function sync_new_orders(){
             $o['fulfillments'] = array();
 
             $order_refunds = $order->get_refunds();
-
-            //echo '<br>order_refunds: <pre>'; print_r($order_refunds); echo '</pre>';
-            //continue;
 
             if($order_refunds){
 
@@ -1125,8 +1134,6 @@ function sync_new_orders(){
 
             $json_payload = json_encode($o);
 
-            //echo '<pre>'; print_r($json_payload); echo '</pre>';
-
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
             $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
 
@@ -1143,10 +1150,6 @@ function sync_new_orders(){
                         ),
                 'body' => $json_payload
             ));
-
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
-
-            //exit;
 
             $r = json_decode($response['body']);
 
@@ -1273,8 +1276,6 @@ function sync_updated_orders(){
 
             foreach ( $order->get_items() as $item_id => $item ) {
 
-                //echo '<br>item id: '.$item_id;
-
                 $i['id'] = $item_id;
 
                 $product = $item->get_product(); 
@@ -1289,8 +1290,6 @@ function sync_updated_orders(){
                 $i['total_discount'] = '';
                 $i['fulfillment_status'] = ($order->get_status() == 'completed') ? 'shipped' : 'unshipped';
                 $i['gift_card'] = false;
-
-                //echo '<pre>'; print_r($item); echo '</pre>';
 
                 $line_items[] = $i;
             }
@@ -1347,9 +1346,6 @@ function sync_updated_orders(){
             
             $customer_id = $order->get_customer_id();
             $user_id = $order->get_user_id();
-
-            //echo '<br>customer id: '.$customer_id;
-            //echo '<br>user id: '.$user_id;
             
 
             $o['customer']['guest'] = $order->get_user_id() == 0 ? 'yes' : 'no';
@@ -1372,9 +1368,20 @@ function sync_updated_orders(){
                 
                 $o['customer']['verified_email'] = true;
 
-                $o['customer']['last_order_name'] = null;   // TODO update with order number
-                $o['customer']['last_order_id'] = null;    // TODO update with order ID
+                $last_order = $customer->get_last_order();
 
+                if(!empty($last_order)){
+                    
+                    $last_order_id = $last_order->get_id();
+                    
+
+                    $o['customer']['last_order_name'] = $last_order_id;
+                    $o['customer']['last_order_id'] = $last_order_id;
+
+                }else{
+                    $o['customer']['last_order_name'] = null;
+                    $o['customer']['last_order_id'] = null;
+                }
 
                 $o['customer']['orders_count'] = $customer->get_order_count();
                 $o['customer']['total_spent'] = $customer->get_total_spent();
@@ -1405,8 +1412,8 @@ function sync_updated_orders(){
                 $o['customer']['updated_at'] = '';
                 $o['customer']['verified_email'] = false;
 
-                $o['customer']['last_order_name'] = null;   // TODO update with order number
-                $o['customer']['last_order_id'] = null;    // TODO update with order ID
+                $o['customer']['last_order_name'] = null;   
+                $o['customer']['last_order_id'] = null;    
 
                 $o['customer']['orders_count'] = 0;
                 $o['customer']['total_spent'] = 0;
@@ -1431,9 +1438,6 @@ function sync_updated_orders(){
             $o['fulfillments'] = array();
 
             $order_refunds = $order->get_refunds();
-
-            //echo '<br>order_refunds: <pre>'; print_r($order_refunds); echo '</pre>';
-            //continue;
 
             if($order_refunds){
 
@@ -1469,8 +1473,6 @@ function sync_updated_orders(){
 
             $json_payload = json_encode($o);
 
-            //echo '<pre>'; print_r($json_payload); echo '</pre>';
-
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
             $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
 
@@ -1487,10 +1489,6 @@ function sync_updated_orders(){
                         ),
                 'body' => $json_payload
             ));
-
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
-
-            //exit;
 
             $r = json_decode($response['body']);
 
@@ -1517,8 +1515,6 @@ function sync_deleted_orders(){
 
             if( get_post_type( $post_id ) != 'shop_order' ) return;
 
-            //echo 'product delted';
-
             $json_payload = json_encode(array('id' => $post_id));
 
             $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
@@ -1537,8 +1533,6 @@ function sync_deleted_orders(){
                         ),
                 'body' => $json_payload
             ));
-
-            //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
 
             $r = json_decode($response['body']);
 

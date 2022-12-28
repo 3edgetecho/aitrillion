@@ -7,6 +7,7 @@ add_action( 'woocommerce_after_single_product_summary', 'aitrillion_related_prod
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_new_arrival');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_trending_product');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_recent_view');
+add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_product_page');
 add_action( 'woocommerce_cart_coupon', 'aitrillion_coupon_widget');
 add_action( 'woocommerce_after_cart', 'aitrillion_new_arrival');
 add_action( 'woocommerce_after_cart', 'aitrillion_trending_product');
@@ -19,16 +20,16 @@ add_action( 'wp_footer', 'aitrillion_lyt_blocked_customer' );
 
 add_action('wp_enqueue_scripts', 'aitrillion_script');
 
-add_shortcode('ait_product_featured_reviews', 'aitrillion_product_featured_reviews_shortcode');
-add_shortcode('ait_site_reviews', 'aitrillion_site_reviews_shortcode');
-add_shortcode('ait_new_arrival', 'aitrillion_new_arrival_shortcode');
-add_shortcode('ait_trending_product', 'aitrillion_trending_product_shortcode');
-add_shortcode('ait_recent_view', 'aitrillion_recent_view_shortcode');
-add_shortcode('ait_affiliate', 'aitrillion_affiliate_shortcode');
-add_shortcode('ait_loyalty', 'aitrillion_loyalty_shortcode');
-add_shortcode('ait_list_review', 'aitrillion_list_review_shortcode');
-add_shortcode('ait_related_product', 'aitrillion_ait_related_product_shortcode');
-add_shortcode('ait_coupon_widget', 'aitrillion_coupon_widget_shortcode');
+add_shortcode('aitrillion_product_featured_reviews', 'aitrillion_product_featured_reviews_shortcode');
+add_shortcode('aitrillion_site_reviews', 'aitrillion_site_reviews_shortcode');
+add_shortcode('aitrillion_new_arrival', 'aitrillion_new_arrival_shortcode');
+add_shortcode('aitrillion_trending_product', 'aitrillion_trending_product_shortcode');
+add_shortcode('aitrillion_recent_view', 'aitrillion_recent_view_shortcode');
+add_shortcode('aitrillion_affiliate', 'aitrillion_affiliate_shortcode');
+add_shortcode('aitrillion_loyalty', 'aitrillion_loyalty_shortcode');
+add_shortcode('aitrillion_list_review', 'aitrillion_list_review_shortcode');
+add_shortcode('aitrillion_related_product', 'aitrillion_ait_related_product_shortcode');
+add_shortcode('aitrillion_coupon_widget', 'aitrillion_coupon_widget_shortcode');
 
 
 function aitrillion_product_review_rating() {
@@ -37,49 +38,53 @@ function aitrillion_product_review_rating() {
 }
 
 function aitrillion_ait_list_review() {
-    echo do_shortcode('[ait_list_review]');
+    echo do_shortcode('[aitrillion_list_review]');
 }
 
 function aitrillion_related_product() {
-    echo do_shortcode('[ait_related_product]');
+    echo do_shortcode('[aitrillion_related_product]');
 }
 
 function aitrillion_ait_new_arrival() {
-    echo do_shortcode('[ait_new_arrival]');
+    echo do_shortcode('[aitrillion_new_arrival]');
 }
 
 function aitrillion_ait_trending_product() {
-    echo do_shortcode('[ait_trending_product]');
+    echo do_shortcode('[aitrillion_trending_product]');
 }
 
 function aitrillion_ait_recent_view() {
-    echo do_shortcode('[ait_recent_view]');
+    echo do_shortcode('[aitrillion_recent_view]');
+}
+
+function aitrillion_ait_product_page() {
+    echo '<div id="ait_product_page"></div>';
 }
 
 function aitrillion_coupon_widget(){
-    echo do_shortcode('[ait_coupon_widget]');
+    echo do_shortcode('[aitrillion_coupon_widget]');
 }
 
 function aitrillion_new_arrival() {
-        echo do_shortcode('[ait_new_arrival]');
+        echo do_shortcode('[aitrillion_new_arrival]');
 }
 
 function aitrillion_trending_product() {
-    echo do_shortcode('[ait_trending_product]');
+    echo do_shortcode('[aitrillion_trending_product]');
 }
 
 function aitrillion_recent_view () {
-    echo do_shortcode('[ait_recent_view]');
+    echo do_shortcode('[aitrillion_recent_view]');
 }
 function aitrillion_after_shop_new_arrival() {
-    echo do_shortcode('[ait_new_arrival]');
+    echo do_shortcode('[aitrillion_new_arrival]');
 }
 function aitrillion_after_shop_trending_product() {
-    echo do_shortcode('[ait_trending_product]');
+    echo do_shortcode('[aitrillion_trending_product]');
 }
 
 function aitrillion_after_shop_recent_view() {
-    echo do_shortcode('[ait_recent_view]');
+    echo do_shortcode('[aitrillion_recent_view]');
 }
 
 function aitrillion_script() {
@@ -92,28 +97,46 @@ function aitrillion_script() {
 
     $aitrilltion_script = get_option('_aitrillion_script_url');
 
-    //echo '<br>aitrilltion_script: '.$aitrilltion_script;
+    if($aitrilltion_script){
 
-    $script_version = get_option('_aitrillion_script_version');
+        $script_version = get_option('_aitrillion_script_version');
 
-    //echo '<br>script_version: '.$script_version;
+        if($userid){
 
-    $script = "
-    <!-- AITRILLION APP SCRIPT -->
+            $script = "
+                <!-- AITRILLION APP SCRIPT -->
 
-    var aioMeta = {
-        meta_e: '".$current_user->user_email."',
-        meta_i: '".$userid."',
-        meta_n: '".$username."',
-    } 
+                var aioMeta = {
+                    meta_e: '".$current_user->user_email."',
+                    meta_i: '".$userid."',
+                    meta_n: '".$username."',
+                } 
 
-    <!-- END AITRILLION APP SCRIPT -->";
+                <!-- END AITRILLION APP SCRIPT -->";
+        }else{
 
-    $url = explode('?', $aitrilltion_script);
+            $script = "
+                <!-- AITRILLION APP SCRIPT -->
 
-    wp_enqueue_script( 'aitrillion-script', $url[0].'?v='.$script_version.'&'.$url[1], array(), null);
+                var aioMeta = {
+                    meta_e: '',
+                    meta_i: '',
+                    meta_n: '',
+                } 
 
-    wp_add_inline_script('aitrillion-script', $script, 'after'); 
+                <!-- END AITRILLION APP SCRIPT -->";
+        }
+
+        
+
+        $url = explode('?', $aitrilltion_script);
+
+        wp_enqueue_script( 'aitrillion-script', $url[0].'?v='.$script_version.'&'.$url[1], array(), null);
+
+        wp_add_inline_script('aitrillion-script', $script, 'after');     
+    }
+
+    
 }
 
 function aitrillion_product_featured_reviews_shortcode() {
@@ -162,7 +185,7 @@ function aitrillion_loyalty_shortcode() {
 
 function aitrillion_list_review_shortcode() {
 
-    $message = include AIT_PATH . 'list-review.html';
+    $message = include AITRILLION_PATH . 'list-review.html';
     return $message;
 }
 
@@ -187,8 +210,10 @@ function aitrillion_referral_hidden_fields() {
 
         ?>
         <input type="hidden" name="is_customer_logged_in" value="1" class="is_customer_logged_in"> 
-        <input type="hidden" name="referral_customer_logged_id" value="<?=$userid?>" class="referral_customer_logged_id"> 
-        <input type="hidden" name="referral_customer_email" value="<?=$current_user->user_email?>" class="referral_customer_email">
+        <input type="hidden" name="referral_customer_logged_id" value="<?php echo $userid?>" class="referral_customer_logged_id"> 
+        <input type="hidden" name="referral_customer_email" value="<?php echo $current_user->user_email?>" class="referral_customer_email">
+
+        <input type="hidden" name="referral_shop_currency" value="<?php echo get_woocommerce_currency_symbol()?>" class="referral_shop_currency">
         <?php 
     }
     else { 
@@ -208,8 +233,6 @@ function aitrillion_lyt_blocked_customer(){
         $userid = get_current_user_id();
 
         $lyt_blocked_customers = get_option('_aitrillion_block_loyalty_members');
-
-        //echo '<br>lyt_blocked_customers: '.$lyt_blocked_customers;
 
         if(!empty($lyt_blocked_customers)){
             $customer_ids = explode(',', $lyt_blocked_customers);
@@ -246,7 +269,7 @@ function aitrillion_affiliate_link( $menu_links ){
 
 function aitrillion_affiliate_content() {
     //echo "affiliate";
-    echo do_shortcode('[ait_affiliate]');
+    echo do_shortcode('[aitrillion_affiliate]');
 }
 add_action( 'woocommerce_account_affiliate_endpoint', 'aitrillion_affiliate_content' );
 

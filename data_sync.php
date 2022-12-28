@@ -1,23 +1,23 @@
 <?php 
 
-add_action( 'user_register', 'sync_user_register', 10, 1 );
-add_action( 'profile_update', 'sync_user_update', 10, 2 );
-add_action( 'delete_user', 'sync_user_delete' );
+add_action( 'user_register', 'aitrillion_sync_user_register', 10, 1 );
+add_action( 'profile_update', 'aitrillion_sync_user_update', 10, 2 );
+add_action( 'delete_user', 'aitrillion_sync_user_delete' );
 
-add_action( 'woocommerce_new_product', 'sync_product_create', 10, 1 );
-add_action( 'woocommerce_update_product', 'sync_product_updated', 10, 1 );
-add_action( 'wp_trash_post', 'sync_product_delete', 99 );
-add_action( 'delete_post', 'sync_product_delete', 99 );
+add_action( 'woocommerce_new_product', 'aitrillion_sync_product_create', 10, 1 );
+add_action( 'woocommerce_update_product', 'aitrillion_sync_product_updated', 10, 1 );
+add_action( 'wp_trash_post', 'aitrillion_sync_product_delete', 99 );
+add_action( 'delete_post', 'aitrillion_sync_product_delete', 99 );
 
-add_action( 'woocommerce_new_order', 'sync_order_create',  1, 1  );
-add_action( 'woocommerce_process_shop_order_meta', 'sync_order_update');
-add_action( 'wp_trash_post', 'sync_order_delete', 99 );
+add_action( 'woocommerce_new_order', 'aitrillion_sync_order_create',  1, 1  );
+add_action( 'woocommerce_process_shop_order_meta', 'aitrillion_sync_order_update');
+add_action( 'wp_trash_post', 'aitrillion_sync_order_delete', 99 );
 
-add_action( 'updated_option', 'sync_store_detail', 10, 3 );
+add_action( 'updated_option', 'aitrillion_sync_store_detail', 10, 3 );
 
-function sync_user_register( $user_id ) {
+function aitrillion_sync_user_register( $user_id ) {
 
-    add_user_meta($user_id, '_aitrillion_user_sync', 'false');
+    update_user_meta($user_id, '_aitrillion_user_sync', 'false');
 
     $new_users = get_option( '_aitrillion_created_users' );
 
@@ -29,9 +29,9 @@ function sync_user_register( $user_id ) {
 }
 
 
-function sync_user_update( $user_id, $old_user_data ) {
+function aitrillion_sync_user_update( $user_id, $old_user_data ) {
 
-    add_user_meta($user_id, '_aitrillion_user_sync', 'false');
+    update_user_meta($user_id, '_aitrillion_user_sync', 'false');
 
     $updated_users = get_option( '_aitrillion_updated_users' );
 
@@ -44,7 +44,7 @@ function sync_user_update( $user_id, $old_user_data ) {
 }
 
 
-function sync_user_delete( $user_id ) {
+function aitrillion_sync_user_delete( $user_id ) {
 
     $deleted_users = get_option( '_aitrillion_deleted_users' );
 
@@ -58,7 +58,7 @@ function sync_user_delete( $user_id ) {
 }
 
 
-function sync_product_create( $product_id ) {
+function aitrillion_sync_product_create( $product_id ) {
 
     add_post_meta($product_id, '_aitrillion_product_sync', 'false');
 
@@ -71,7 +71,7 @@ function sync_product_create( $product_id ) {
     return false;
 }
 
-function sync_product_updated( $product_id ) {
+function aitrillion_sync_product_updated( $product_id ) {
 
     add_post_meta($product_id, '_aitrillion_product_sync', 'false');
 
@@ -84,7 +84,7 @@ function sync_product_updated( $product_id ) {
     return false;
 }
 
-function sync_product_delete( $post_id ){
+function aitrillion_sync_product_delete( $post_id ){
 
     if( get_post_type( $post_id ) != 'product' ) return;
 
@@ -100,7 +100,7 @@ function sync_product_delete( $post_id ){
     
 }
 
-function sync_order_create($order_id){
+function aitrillion_sync_order_create($order_id){
 
     add_post_meta($order_id, '_aitrillion_order_sync', 'false');
 
@@ -113,7 +113,7 @@ function sync_order_create($order_id){
     return false;
 }
 
-function sync_order_update ( $order_id )
+function aitrillion_sync_order_update ( $order_id )
 {
 
     add_post_meta($order_id, '_aitrillion_order_sync', 'false');
@@ -128,7 +128,7 @@ function sync_order_update ( $order_id )
     
 }
 
-function sync_order_delete( $post_id ){
+function aitrillion_sync_order_delete( $post_id ){
 
     $deleted_orders = get_option( '_aitrillion_deleted_orders' );
 
@@ -141,7 +141,7 @@ function sync_order_delete( $post_id ){
     return false;
 }
 
-function sync_store_detail( $option_name, $old_value, $value ) {
+function aitrillion_sync_store_detail( $option_name, $old_value, $value ) {
 
     $store_details = array('woocommerce_store_address', 
                             'woocommerce_store_address_2', 
@@ -184,8 +184,6 @@ function sync_store_detail( $option_name, $old_value, $value ) {
         $return['shop_currency'] = get_woocommerce_currency();
         $return['money_format'] = html_entity_decode(get_woocommerce_currency_symbol());
 
-        //echo '<pre>'; print_r($return); echo '</pre>';
-
         $json_payload = json_encode($return);
 
         $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
@@ -204,8 +202,6 @@ function sync_store_detail( $option_name, $old_value, $value ) {
                     ),
             'body' => $json_payload
         ));
-
-        //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
 
         $r = json_decode($response['body']);
 
