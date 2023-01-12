@@ -2,7 +2,7 @@
 
 
 add_action( 'woocommerce_single_product_summary', 'aitrillion_product_review_rating', 5 );
-add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_list_review');
+add_action( 'woocommerce_after_single_product_summary', 'aitrillion_list_review');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_related_product');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_new_arrival');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_trending_product');
@@ -37,7 +37,7 @@ function aitrillion_product_review_rating() {
     echo '<span class="egg-product-reviews-rating" data-id="'.wc_get_product()->get_id().'" id="'.wc_get_product()->get_id().'"></span>';
 }
 
-function aitrillion_ait_list_review() {
+function aitrillion_list_review() {
     echo do_shortcode('[aitrillion_list_review]');
 }
 
@@ -185,8 +185,12 @@ function aitrillion_loyalty_shortcode() {
 
 function aitrillion_list_review_shortcode() {
 
-    $message = include AITRILLION_PATH . 'list-review.html';
-    return $message;
+    //$message = include AITRILLION_PATH . 'list-review.html';
+    $content = file_get_contents(AITRILLION_PATH.'list-review.html');
+
+    $content = str_replace('{{product_id}}', wc_get_product()->get_id(), $content);
+
+    return $content;
 }
 
 function aitrillion_ait_related_product_shortcode() {
@@ -274,4 +278,99 @@ function aitrillion_affiliate_content() {
 add_action( 'woocommerce_account_affiliate_endpoint', 'aitrillion_affiliate_content' );
 
 
+// Create custom columns into products list
+add_filter( 'manage_edit-product_columns', 'aitrillion_sync_status',15 );
+function aitrillion_sync_status($columns){
+
+   //add column
+   $columns['ait_status'] = __( 'AIT Sync Status'); 
+
+   return $columns;
+}
+
+add_action( 'manage_product_posts_custom_column', 'aitrillion_product_column_sync', 10, 2 );
+
+function aitrillion_product_column_sync( $column, $postid ) {
+    if ( $column == 'ait_status' ) {
+        echo get_post_meta( $postid, '_aitrillion_product_sync', true );
+    }
+}
+
+function aitrillion_product_sync_sort_columns( $columns )
+{
+    $columns['ait_status'] = '_aitrillion_product_sync';
+    return $columns;
+}
+add_filter( 'manage_edit-product_sortable_columns', 'aitrillion_product_sync_sort_columns' );
+
+
+// Create custom columns into orders list
+add_filter( 'manage_edit-shop_order_columns', 'aitrillion_order_sync_status_column',15 );
+function aitrillion_order_sync_status_column($columns){
+
+   //add column
+   $columns['ait_status'] = __( 'AIT Sync Status'); 
+
+   return $columns;
+}
+
+add_action( 'manage_shop_order_posts_custom_column', 'aitrillion_order_column_sync', 10, 2 );
+
+function aitrillion_order_column_sync( $column, $postid ) {
+    if ( $column == 'ait_status' ) {
+        echo get_post_meta( $postid, '_aitrillion_order_sync', true );
+    }
+}
+
+function aitrillion_order_sync_sort_columns( $columns )
+{
+    $columns['ait_status'] = '_aitrillion_order_sync';
+    return $columns;
+}
+
+add_filter( 'manage_edit-shop_order_sortable_columns', 'aitrillion_order_sync_sort_columns' );
+
+
+// Create custom columns into users list
+add_filter('manage_users_columns', 'aitrillion_user_sync_column');
+function aitrillion_user_sync_column($columns) {
+    $columns['ait_status'] = 'AIT Sync Status';
+    return $columns;
+}    
+
+add_action('manage_users_custom_column',  'aitrillion_user_sync_status', 10, 3);
+function aitrillion_user_sync_status( $output, $column_key, $user_id ) {
+    
+    switch ( $column_key ) {
+        case 'ait_status':
+            $value = get_user_meta( $user_id, '_aitrillion_user_sync', true );
+
+            return $value;
+            break;
+        default: break;
+    }
+
+    // if no column slug found, return default output value
+    return $output;
+}
+
+
+// Create custom columns into category list
+
+function aitrillion_category_sync_column($columns) { 
+
+    $columns['ait_status'] = 'AIT Sync Status';
+
+    return $columns; 
+} 
+add_filter('manage_edit-product_cat_columns', 'aitrillion_category_sync_column'); 
+
+function aitrillion_category_sync_status( $columns, $column, $term_id ) { 
+
+    if ($column == 'ait_status') {
+        $foo = get_term_meta( $term_id, '_aitrillion_category_sync', true );
+        return $foo;
+    }
+}
+add_filter('manage_product_cat_custom_column', 'aitrillion_category_sync_status', 10, 3);
 ?>

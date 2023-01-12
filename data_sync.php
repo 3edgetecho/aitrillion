@@ -9,6 +9,10 @@ add_action( 'woocommerce_update_product', 'aitrillion_sync_product_updated', 10,
 add_action( 'wp_trash_post', 'aitrillion_sync_product_delete', 99 );
 add_action( 'delete_post', 'aitrillion_sync_product_delete', 99 );
 
+add_action('create_product_cat', 'aitrillion_sync_product_category_create', 10, 1);
+add_action('edit_product_cat', 'aitrillion_sync_product_category_update', 10, 1);
+add_action('delete_product_cat', 'aitrillion_sync_product_category_delete', 10, 1);
+
 add_action( 'woocommerce_new_order', 'aitrillion_sync_order_create',  1, 1  );
 add_action( 'woocommerce_process_shop_order_meta', 'aitrillion_sync_order_update');
 add_action( 'wp_trash_post', 'aitrillion_sync_order_delete', 99 );
@@ -68,12 +72,12 @@ function aitrillion_sync_product_create( $product_id ) {
 
     update_option('_aitrillion_created_products', $created_products);
 
-    return false;
+    return true;
 }
 
 function aitrillion_sync_product_updated( $product_id ) {
 
-    add_post_meta($product_id, '_aitrillion_product_sync', 'false');
+    update_post_meta($product_id, '_aitrillion_product_sync', 'false');
 
     $updated_products = get_option( '_aitrillion_updated_products' );
 
@@ -100,9 +104,48 @@ function aitrillion_sync_product_delete( $post_id ){
     
 }
 
+function aitrillion_sync_product_category_create( $category_id ){
+
+    add_term_meta($category_id, '_aitrillion_category_sync', 'false');
+
+    $created_categories = get_option( '_aitrillion_created_categories' );
+
+    $created_categories[] = $category_id;
+
+    update_option('_aitrillion_created_categories', $created_categories);
+
+    return true;
+}
+
+function aitrillion_sync_product_category_update( $category_id ){
+
+    add_term_meta($category_id, '_aitrillion_category_sync', 'false');
+
+    $updated_categories = get_option( '_aitrillion_updated_categories' );
+
+    $updated_categories[] = $category_id;
+
+    update_option('_aitrillion_updated_categories', $updated_categories);
+
+    return true;
+}
+
+function aitrillion_sync_product_category_delete( $category_id ){
+
+    $deleted_categories = get_option( '_aitrillion_deleted_categories' );
+
+    $deleted_categories[] = $category_id;
+
+    update_option('_aitrillion_deleted_categories', $deleted_categories);
+
+    aitrillion_api_log('category deleted: '.$category_id.PHP_EOL);
+
+    return true;
+}
+
 function aitrillion_sync_order_create($order_id){
 
-    add_post_meta($order_id, '_aitrillion_order_sync', 'false');
+    update_post_meta($order_id, '_aitrillion_order_sync', 'false');
 
     $created_orders = get_option( '_aitrillion_created_orders' );
 
@@ -116,7 +159,7 @@ function aitrillion_sync_order_create($order_id){
 function aitrillion_sync_order_update ( $order_id )
 {
 
-    add_post_meta($order_id, '_aitrillion_order_sync', 'false');
+    update_post_meta($order_id, '_aitrillion_order_sync', 'false');
 
     $updated_products = get_option( '_aitrillion_updated_orders' );
 
@@ -152,60 +195,8 @@ function aitrillion_sync_store_detail( $option_name, $old_value, $value ) {
                         );
 
     if( in_array($option_name, $store_details) ){
-        
-        $return['shop_name'] = DOMAIN;
 
-        $return['shop_type'] = 'woocommerce';
-        $return['shop_owner'] = '';
-        $return['status'] = 1;
-        
-        $store_city        = get_option( 'woocommerce_store_city' );
-        $store_postcode    = get_option( 'woocommerce_store_postcode' );
-
-        // The country/state
-        $store_raw_country = get_option( 'woocommerce_default_country' );
-
-        // Split the country/state
-        $split_country = explode( ":", $store_raw_country );
-
-        // Country and state separated:
-        $store_country = $split_country[0];
-        $store_state   = $split_country[1];
-
-        $return['address1'] = get_option( 'woocommerce_store_address' );
-        $return['address2'] = get_option( 'woocommerce_store_address_2' );
-        $return['country'] = $store_country;
-        $return['city'] = $store_city;
-        $return['zip'] = $store_postcode;
-        $return['phone'] = '';
-        $return['store_name'] = get_bloginfo('name');
-        $return['email'] = get_bloginfo( 'admin_email' );
-
-        $return['shop_currency'] = get_woocommerce_currency();
-        $return['money_format'] = html_entity_decode(get_woocommerce_currency_symbol());
-
-        $json_payload = json_encode($return);
-
-        $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
-        $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
-
-        $bearer = base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password );
-
-        $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
-        $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
-
-        $url = AITRILLION_END_POINT.'shops/update';
-
-        $response = wp_remote_post( $url, array(
-            'headers' => array(
-                        'Authorization' => 'Basic ' . base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password )
-                    ),
-            'body' => $json_payload
-        ));
-
-        $r = json_decode($response['body']);
-
-        aitrillion_api_log('Store updated: '.PHP_EOL.print_r($return, true).PHP_EOL.print_r($r, true));
+        update_option('_aitrillion_shop_updated', true);
     }
 
 }

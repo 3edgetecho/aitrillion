@@ -77,14 +77,14 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                 'aitrillion_options_page'
             );
 
-            add_submenu_page(
+            /*add_submenu_page(
                 'aitrillion.php',
                 'Aitrillion Shortcode Widgets',
                 'Shortcode Widgets',
                 'manage_options',
                 'aitrillion_shortcode',
                 'aitrillion_shortcode'
-            );
+            );*/
 
         }
 
@@ -115,91 +115,193 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
                     <?php do_settings_sections( 'aitrillion_options' ); ?>
 
-                    <table class="form-table">
-                        <tr valign="top">
-                        <th scope="row">AiTrillion API Key</th>
-                        <td><input type="text" name="_aitrillion_api_key" value="<?php echo esc_attr( get_option('_aitrillion_api_key') ); ?>" /></td>
-                        </tr>
-                         
-                        <tr valign="top">
-                        <th scope="row">AiTrillion API Password</th>
-                        <td>
-                            <input type="password" name="_aitrillion_api_password" value="<?php echo esc_attr( get_option('_aitrillion_api_password') ); ?>" />
-                        </td>
-                        </tr>
+                    <div class="card" style="max-width: 700px">
+                        Login to <a href="https://app.aitrillion.com/" target="_blank">AiTrillion</a>
+                    </div>
 
-                        <tr valign="top">
-                        <th scope="row">AiTrillion script URL</th>
-                        <td>
-                            
-                            <textarea rows="5" cols="50" name="_aitrillion_script_url"><?php echo esc_attr( get_option('_aitrillion_script_url') ); ?></textarea>
-                        </td>
-                        </tr>
+                    <div class="card" style="max-width: 700px">
 
-                        <tr valign="top">
-                        <th scope="row">AiTrillion Affiliate Module</th>
-                        <td>
-                            <?php $checked = esc_attr( get_option('_aitrillion_affiliate_module') ) ? 'checked="checked"' : ''; ?>
+                        <table class="form-table">
+                            <tr valign="top">
+                            <th scope="row">AiTrillion API Key</th>
+                            <td><input type="text" name="_aitrillion_api_key" value="<?php echo esc_attr( get_option('_aitrillion_api_key') ); ?>" /></td>
+                            </tr>
+                             
+                            <tr valign="top">
+                            <th scope="row">AiTrillion API Password</th>
+                            <td>
+                                <input type="password" name="_aitrillion_api_password" value="<?php echo esc_attr( get_option('_aitrillion_api_password') ); ?>" />
+                            </td>
+                            </tr>
 
-                            <input type="checkbox" name="_aitrillion_affiliate_module" value="1" <?=$checked?> />
-                        </td>
-                        </tr>
+                            <tr valign="top">
+                            <th scope="row">AiTrillion script URL</th>
+                            <td>
+                                
+                                <textarea rows="5" cols="50" name="_aitrillion_script_url"><?php echo esc_attr( get_option('_aitrillion_script_url') ); ?></textarea>
+                            </td>
+                            </tr>
 
-                        <?php 
+                            <tr valign="top">
+                            <th scope="row">AiTrillion Affiliate Module</th>
+                            <td>
+                                <?php $checked = esc_attr( get_option('_aitrillion_affiliate_module') ) ? 'checked="checked"' : ''; ?>
 
-                            $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
-                            $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
+                                <input type="checkbox" name="_aitrillion_affiliate_module" value="1" <?=$checked?> />
+                            </td>
+                            </tr>
 
-                            if($_aitrillion_api_key && $_aitrillion_api_password){
-                        ?>
+                            <?php 
 
+                                $_aitrillion_api_key = get_option( '_aitrillion_api_key' );
+                                $_aitrillion_api_password = get_option( '_aitrillion_api_password' );
+
+                                if($_aitrillion_api_key && $_aitrillion_api_password){
+                            ?>
+
+                            <tr>
+                                <th scope="row">AiTrillion connection</th>
+                                <td>
+                                    <?php 
+
+                                        $domain = preg_replace("(^https?://)", "", site_url() );
+
+                                        $url = AITRILLION_END_POINT.'validate?shop_name='.$domain;
+
+                                        $response = wp_remote_get( $url, array(
+                                            'headers' => array(
+                                                'Authorization' => 'Basic ' . base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password )
+                                            )
+                                        ));
+
+                                        $r = json_decode($response['body']);
+
+                                        if(isset($r->status) && $r->status == 'sucess'){
+
+                                            echo '<strong style="color: green">Active</strong>';
+
+                                        }else{
+
+                                            echo '<strong style="color: red">In-active</strong>';
+
+                                            if(isset($r->status) && $r->status == 'error'){
+
+                                                 echo ' <strong style="color: red">('.$r->msg.')</strong>';
+
+                                            }elseif(isset($r->message)){
+
+                                                echo ' <strong style="color: red">('.$r->message.')</strong>';
+                                            }
+
+                                        }
+                                    ?>
+                                </td>
+                            </tr>
+
+                            <?php 
+                                }
+                            ?>
+                        </table>    
+                    </div>
+                    
+                    
+                    <?php submit_button(); ?>
+
+                </form>
+
+                <div class="card" style="max-width: 700px">
+                    <table cellpadding="2" cellspacing="2">
                         <tr>
-                            <th scope="row">AiTrillion connection</th>
+                            <td><strong>Failed products sync:</strong></td>
                             <td>
                                 <?php 
-
-                                    $domain = preg_replace("(^https?://)", "", site_url() );
-
-                                    $url = AITRILLION_END_POINT.'validate?shop_name='.$domain;
-
-                                    $response = wp_remote_get( $url, array(
-                                        'headers' => array(
-                                            'Authorization' => 'Basic ' . base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password )
+                                    $params = array(
+                                        'post_type' => 'product',
+                                        'meta_query' => array(
+                                            array('key' => '_aitrillion_product_sync', //meta key name here
+                                                  'value' => 'false', 
+                                                  'compare' => '=',
+                                            )
                                         )
-                                    ));
+                                    );
+                                    $wc_query = new WP_Query($params);
 
-                                    $r = json_decode($response['body']);
+                                    $failed_products = $wc_query->found_posts;
 
-                                    if(isset($r->status) && $r->status == 'sucess'){
+                                    echo $failed_products;
+                                ?>
+                            </td>
+                        </tr>
 
-                                        echo '<strong style="color: green">Active</strong>';
+                        <tr>
+                            <td><strong>Failed order sync:</strong></td>
+                            <td>
+                                <?php 
+                                    $orders = wc_get_orders( array(
+                                                            'limit'        => -1, // Query all orders
+                                                            'meta_key'     => '_aitrillion_order_sync', 
+                                                            'meta_value'     => 'false', 
+                                                            'meta_compare' => '=', // The comparison argument
+                                                        ));
 
+                                    if(!empty($orders)){
+                                        echo count($orders);
                                     }else{
-
-                                        echo '<strong style="color: red">In-active</strong>';
-
-                                        if(isset($r->status) && $r->status == 'error'){
-
-                                             echo ' <strong style="color: red">('.$r->msg.')</strong>';
-
-                                        }elseif(isset($r->message)){
-
-                                            echo ' <strong style="color: red">('.$r->message.')</strong>';
-                                        }
-
+                                        echo '0';
                                     }
                                 ?>
                             </td>
                         </tr>
 
-                        <?php 
-                            }
-                        ?>
-                    </table>
-                    
-                    <?php submit_button(); ?>
+                        <tr>
+                            <td><strong>Failed categories sync:</strong></td>
+                            <td>
+                                <?php 
+                                    $args = array(
+                                                'hide_empty' => false, // also retrieve terms which are not used yet
+                                                'meta_query' => array(
+                                                    array(
+                                                       'key'       => '_aitrillion_category_sync',
+                                                       'value'     => 'false',
+                                                       'compare'   => '='
+                                                    )
+                                                ),
+                                                'taxonomy'  => 'product_cat',
+                                                );
 
-                </form>
+                                    $terms = get_terms( $args );
+
+                                    if(!empty($terms)){
+                                        echo count($terms);
+                                    }else{
+                                        echo '0';
+                                    }
+                                ?>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td><strong>Failed customers sync:</strong></td>
+                            <td>
+                                <?php 
+                                    $customers = get_users(array(
+                                                    'meta_key' => '_aitrillion_user_sync',
+                                                    'meta_value' => 'false'
+                                                ));
+
+                                    if(!empty($customers)){
+                                        echo count($customers);
+                                    }else{
+                                        echo '0';
+                                    }
+
+                                    
+                                ?>
+                            </td>
+                        </tr>
+                        
+                    </table>
+                </div>
             </div>
      
     <?php
