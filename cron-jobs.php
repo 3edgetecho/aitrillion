@@ -72,7 +72,7 @@ function sync_new_customers(){
 
             $c = aitrilltion_get_customer( $user_id );
 
-            aitrillion_api_log('customer '.print_r($c, true).PHP_EOL);
+            //aitrillion_api_log('customer '.print_r($c, true).PHP_EOL);
             
             $json_payload = json_encode($c);
 
@@ -153,7 +153,7 @@ function sync_updated_customers(){
 
             $c = aitrilltion_get_customer( $user_id );
 
-            aitrillion_api_log('customer '.print_r($c, true).PHP_EOL);
+            //aitrillion_api_log('customer '.print_r($c, true).PHP_EOL);
             
             $json_payload = json_encode($c);
 
@@ -249,7 +249,7 @@ function sync_deleted_customers(){
 
             $r = json_decode($response['body']);
 
-            aitrillion_api_log('API Response for user id: '.$user_id.PHP_EOL.print_r($r, true));
+            aitrillion_api_log('Delete customer API Response for user id: '.$user_id.PHP_EOL.print_r($r, true));
 
         }
 
@@ -276,7 +276,7 @@ function sync_new_products(){
 
             $p = aitrillion_get_product( $product ); 
 
-            aitrillion_api_log('Product: '.$p.PHP_EOL);
+            //aitrillion_api_log('Product: '.$p.PHP_EOL);
 
             $json_payload = json_encode($p);
 
@@ -327,7 +327,7 @@ function sync_updated_products(){
 
             $p = aitrillion_get_product( $product ); 
 
-            aitrillion_api_log('Product: '.$p.PHP_EOL);
+            //aitrillion_api_log('Product: '.$p.PHP_EOL);
 
             $json_payload = json_encode($p);
 
@@ -453,7 +453,7 @@ function sync_new_categories(){
 
             $c = aitrilltion_get_category( $category[0] );
 
-            aitrillion_api_log('category '.print_r($c, true).PHP_EOL);
+            //aitrillion_api_log('category '.print_r($c, true).PHP_EOL);
             
             $json_payload = json_encode($c);
 
@@ -561,7 +561,7 @@ function sync_updated_categories(){
 
             $c = aitrilltion_get_category( $category[0] );
 
-            aitrillion_api_log('category '.print_r($c, true).PHP_EOL);
+            //aitrillion_api_log('category '.print_r($c, true).PHP_EOL);
             
             $json_payload = json_encode($c);
 
@@ -846,7 +846,7 @@ function sync_shop_update(){
         $return['email'] = get_bloginfo( 'admin_email' );
 
         $return['shop_currency'] = get_woocommerce_currency();
-        $return['money_format'] = html_entity_decode(get_woocommerce_currency_symbol());
+        $return['money_format'] = html_entity_decode(get_woocommerce_currency_symbol()).'{{amount}}';
 
         $json_payload = json_encode($return);
 

@@ -212,6 +212,11 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                 <div class="card" style="max-width: 700px">
                     <table cellpadding="2" cellspacing="2">
                         <tr>
+                            <td colspan="2">
+                                <h3>AiTrillion syncing status logs</h3>
+                            </td>
+                        </tr>
+                        <tr>
                             <td><strong>Failed products sync:</strong></td>
                             <td>
                                 <?php 
@@ -301,6 +306,9 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                         </tr>
                         
                     </table>
+
+                    <a href="<?php echo get_site_url().'/wp-cron.php';?>" target="_blank">Resync</a>&nbsp;&nbsp;
+                    <a href="<?php echo get_site_url().'/wp-content/plugins/aitrillion/aitrillion-log.txt';?>" target="_blank">View Log File</a>&nbsp;
                 </div>
             </div>
      

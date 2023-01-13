@@ -178,7 +178,7 @@ function aitrillion_getStoreDetail(WP_REST_Request $request){
     $return['email'] = get_bloginfo( 'admin_email' );
 
     $return['shop_currency'] = get_woocommerce_currency();
-    $return['money_format'] = html_entity_decode(get_woocommerce_currency_symbol());
+    $return['money_format'] = html_entity_decode(get_woocommerce_currency_symbol()).'{{amount}}';
 
     //$return['install_date'] = '';
     $return['created_at'] = date('Y-m-d H:i:s');

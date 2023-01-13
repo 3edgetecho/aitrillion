@@ -282,8 +282,10 @@ add_action( 'woocommerce_account_affiliate_endpoint', 'aitrillion_affiliate_cont
 add_filter( 'manage_edit-product_columns', 'aitrillion_sync_status',15 );
 function aitrillion_sync_status($columns){
 
+    unset( $columns['tags'] );
+
    //add column
-   $columns['ait_status'] = __( 'AIT Sync Status'); 
+   $columns['ait_status'] = __( 'AiT Sync Status'); 
 
    return $columns;
 }
@@ -309,7 +311,7 @@ add_filter( 'manage_edit-shop_order_columns', 'aitrillion_order_sync_status_colu
 function aitrillion_order_sync_status_column($columns){
 
    //add column
-   $columns['ait_status'] = __( 'AIT Sync Status'); 
+   $columns['ait_status'] = __( 'AiT Sync Status'); 
 
    return $columns;
 }
@@ -334,7 +336,7 @@ add_filter( 'manage_edit-shop_order_sortable_columns', 'aitrillion_order_sync_so
 // Create custom columns into users list
 add_filter('manage_users_columns', 'aitrillion_user_sync_column');
 function aitrillion_user_sync_column($columns) {
-    $columns['ait_status'] = 'AIT Sync Status';
+    $columns['ait_status'] = 'AiT Sync Status';
     return $columns;
 }    
 
@@ -359,7 +361,7 @@ function aitrillion_user_sync_status( $output, $column_key, $user_id ) {
 
 function aitrillion_category_sync_column($columns) { 
 
-    $columns['ait_status'] = 'AIT Sync Status';
+    $columns['ait_status'] = 'AiT Sync Status';
 
     return $columns; 
 } 
@@ -373,4 +375,83 @@ function aitrillion_category_sync_status( $columns, $column, $term_id ) {
     }
 }
 add_filter('manage_product_cat_custom_column', 'aitrillion_category_sync_status', 10, 3);
+
+
+add_action( 'woocommerce_after_add_to_cart_button', 'aitrillion_price_drop_button' );
+
+function aitrillion_price_drop_button(){
+
+    echo '<div class="aioPriceDrop" id="aioPriceDrop"></div>';
+
+    $product_id = wc_get_product()->get_id();
+
+    $product = wc_get_product($product_id);
+
+    $current_products = $product->get_children();
+
+    echo '<select name="aio-variantid" style="display:none!important;">';
+
+    if(!empty($current_products)){
+
+        foreach($current_products as $child_product){
+
+            $variant = wc_get_product($child_product);
+
+            //echo '<br>'.$variant->get_name();
+
+            //echo '<pre>'; print_r($variant); echo '</pre>';
+
+            if($variant->is_in_stock()){
+                echo '<option id="aio-variant-id-'.$variant->get_id().'" value="1">'.$variant->get_name().'</option>';
+            }else{
+                echo '<option id="aio-variant-id-'.$variant->get_id().'" value="0">'.$variant->get_name().'</option>';
+            }
+            
+        }
+    }else{
+        echo '<option id="aio-variant-id-'.$product_id.'">'.$product->get_name().'</option>';
+    }
+
+    echo '</select>';
+}
+
+
+add_action( 'woocommerce_after_add_to_cart_button', 'aitrillion_back_in_stock_button' );
+
+function aitrillion_back_in_stock_button(){
+
+    echo '<div class="aioBackInStock" id="aioBackInStock"></div>';
+
+    $product_id = wc_get_product()->get_id();
+
+    $product = wc_get_product($product_id);
+
+    $current_products = $product->get_children();
+
+    echo '<select name="aio-variantid" style="display:none!important;">';
+
+    if(!empty($current_products)){
+
+        foreach($current_products as $child_product){
+
+            $variant = wc_get_product($child_product);
+
+            //echo '<br>'.$variant->get_name();
+
+            //echo '<pre>'; print_r($variant); echo '</pre>';
+
+            if($variant->is_in_stock()){
+                echo '<option id="aio-variant-id-'.$variant->get_id().'" value="1">'.$variant->get_name().'</option>';
+            }else{
+                echo '<option id="aio-variant-id-'.$variant->get_id().'" value="0">'.$variant->get_name().'</option>';
+            }
+            
+        }
+    }else{
+        echo '<option id="aio-variant-id-'.$product_id.'">'.$product->get_name().'</option>';
+    }
+
+    echo '</select>';
+}
+
 ?>

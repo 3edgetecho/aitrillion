@@ -359,7 +359,7 @@ function aitrillion_get_order( $order ){
         foreach($coupon_codes as $code){
 
             $c = new WC_Coupon($code); 
-            $o['discount_codes'][] = array('code' => $code, 'amount' => $c->amount, 'type' => $c->discount_type);
+            $o['discount_codes'][] = array('code' => $code, 'amount' => $c->get_amount(), 'type' => $c->get_discount_type());
 
         }
 
