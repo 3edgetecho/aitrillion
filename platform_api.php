@@ -110,7 +110,19 @@ function aitrillion_auth_check(){
 
         //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
 
-        $r = json_decode($response['body']);
+        if( is_wp_error( $response ) ) {
+            
+            $error_message = $response->get_error_message();
+
+            $return['result'] = false;
+            $return['message'] = $error_message;
+            
+            echo json_encode($return);
+            exit;
+
+        }else{
+            $r = json_decode($response['body']);    
+        }
 
         if(isset($r->status) && $r->status != 'sucess'){
 
