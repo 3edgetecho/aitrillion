@@ -1,25 +1,37 @@
 <?php 
 
-
+// create product review shortcode and show on product detail page  
 add_action( 'woocommerce_single_product_summary', 'aitrillion_product_review_rating', 5 );
+
+// create product reivew, related product, new arrivals, trending product, recent view and show on product detail page
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_list_review');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_related_product');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_new_arrival');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_trending_product');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_recent_view');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_product_page');
+
+// create coupon shortcode and show on cart page
 add_action( 'woocommerce_cart_coupon', 'aitrillion_coupon_widget');
+
+// create new arrival, trending product, recent view shortcode and show on cart page
 add_action( 'woocommerce_after_cart', 'aitrillion_new_arrival');
 add_action( 'woocommerce_after_cart', 'aitrillion_trending_product');
 add_action( 'woocommerce_after_cart', 'aitrillion_recent_view');
+
+// create new arrival, trending product, recent view shortcode and show on shop page
 add_action( 'woocommerce_after_main_content', 'aitrillion_after_shop_new_arrival');
 add_action( 'woocommerce_after_main_content', 'aitrillion_after_shop_trending_product');
 add_action( 'woocommerce_after_main_content', 'aitrillion_after_shop_recent_view');
+
+// create referral hidden field and blocked customer field and show at footer
 add_action( 'wp_footer', 'aitrillion_referral_hidden_fields' );
 add_action( 'wp_footer', 'aitrillion_lyt_blocked_customer' );
 
+// include aitrillion js script
 add_action('wp_enqueue_scripts', 'aitrillion_script');
 
+// create shortcode
 add_shortcode('aitrillion_product_featured_reviews', 'aitrillion_product_featured_reviews_shortcode');
 add_shortcode('aitrillion_site_reviews', 'aitrillion_site_reviews_shortcode');
 add_shortcode('aitrillion_new_arrival', 'aitrillion_new_arrival_shortcode');
@@ -90,15 +102,15 @@ function aitrillion_after_shop_recent_view() {
 function aitrillion_script() {
 
     $username = get_current_user();
-
     $userid = get_current_user_id();
-
     $current_user = wp_get_current_user();
 
+    // get aitrillion js script
     $aitrilltion_script = get_option('_aitrillion_script_url');
 
     if($aitrilltion_script){
 
+        // get aitrillion script version
         $script_version = get_option('_aitrillion_script_version');
 
         if($userid){
@@ -249,17 +261,24 @@ function aitrillion_lyt_blocked_customer(){
     }
 }
 
+/*
+*
+*   Create affiliate menu in woocommerce account page
+*/
+
+// create new route for affiliate menu
+add_action( 'init', 'aitrillion_affiliate_endpoint' );
 function aitrillion_affiliate_endpoint() {
     add_rewrite_endpoint( 'affiliate', EP_PAGES );
 }
-add_action( 'init', 'aitrillion_affiliate_endpoint' );
 
-
+// add affiliate menu
 add_filter ( 'woocommerce_account_menu_items', 'aitrillion_affiliate_link', 40 );
 function aitrillion_affiliate_link( $menu_links ){
 
     $affiliate_module = get_option('_aitrillion_affiliate_module');
 
+    // add affiliate menu of affiliate module is active
     if($affiliate_module == 1){
         $menu_links = array_slice( $menu_links, 0, 5, true ) 
                         + array( 'affiliate' => 'Affiliate Program' )
@@ -270,15 +289,19 @@ function aitrillion_affiliate_link( $menu_links ){
 }
 
 
-
+// show affiliate dashboard from shortcode
+add_action( 'woocommerce_account_affiliate_endpoint', 'aitrillion_affiliate_content' );
 function aitrillion_affiliate_content() {
-    //echo "affiliate";
     echo do_shortcode('[aitrillion_affiliate]');
 }
-add_action( 'woocommerce_account_affiliate_endpoint', 'aitrillion_affiliate_content' );
+
+// end of affiliate menu and dashboard page
 
 
-// Create custom columns into products list
+/*
+* 
+* Create sync status custom column into products list
+*/
 add_filter( 'manage_edit-product_columns', 'aitrillion_sync_status',15 );
 function aitrillion_sync_status($columns){
 
@@ -291,22 +314,26 @@ function aitrillion_sync_status($columns){
 }
 
 add_action( 'manage_product_posts_custom_column', 'aitrillion_product_column_sync', 10, 2 );
-
 function aitrillion_product_column_sync( $column, $postid ) {
     if ( $column == 'ait_status' ) {
         echo get_post_meta( $postid, '_aitrillion_product_sync', true );
     }
 }
 
+add_filter( 'manage_edit-product_sortable_columns', 'aitrillion_product_sync_sort_columns' );
 function aitrillion_product_sync_sort_columns( $columns )
 {
     $columns['ait_status'] = '_aitrillion_product_sync';
     return $columns;
 }
-add_filter( 'manage_edit-product_sortable_columns', 'aitrillion_product_sync_sort_columns' );
+// end of product list sync status custom column
 
 
-// Create custom columns into orders list
+/*
+* 
+* Create sync status custom column into order list
+*/
+
 add_filter( 'manage_edit-shop_order_columns', 'aitrillion_order_sync_status_column',15 );
 function aitrillion_order_sync_status_column($columns){
 
@@ -317,23 +344,25 @@ function aitrillion_order_sync_status_column($columns){
 }
 
 add_action( 'manage_shop_order_posts_custom_column', 'aitrillion_order_column_sync', 10, 2 );
-
 function aitrillion_order_column_sync( $column, $postid ) {
     if ( $column == 'ait_status' ) {
         echo get_post_meta( $postid, '_aitrillion_order_sync', true );
     }
 }
 
+add_filter( 'manage_edit-shop_order_sortable_columns', 'aitrillion_order_sync_sort_columns' );
 function aitrillion_order_sync_sort_columns( $columns )
 {
     $columns['ait_status'] = '_aitrillion_order_sync';
     return $columns;
 }
+// end of order list sync status custom column
 
-add_filter( 'manage_edit-shop_order_sortable_columns', 'aitrillion_order_sync_sort_columns' );
 
-
-// Create custom columns into users list
+/*
+* 
+* Create sync status custom column into user list
+*/
 add_filter('manage_users_columns', 'aitrillion_user_sync_column');
 function aitrillion_user_sync_column($columns) {
     $columns['ait_status'] = 'AiT Sync Status';
@@ -355,10 +384,14 @@ function aitrillion_user_sync_status( $output, $column_key, $user_id ) {
     // if no column slug found, return default output value
     return $output;
 }
+// end of user list sync status custom column
 
 
-// Create custom columns into category list
 
+/*
+* 
+* Create sync status custom column into category list
+*/
 function aitrillion_category_sync_column($columns) { 
 
     $columns['ait_status'] = 'AiT Sync Status';
@@ -375,18 +408,22 @@ function aitrillion_category_sync_status( $columns, $column, $term_id ) {
     }
 }
 add_filter('manage_product_cat_custom_column', 'aitrillion_category_sync_status', 10, 3);
+// end of category list sync status custom column
 
 
+// create shortcode for price drop and show after add to cart button on product detail page
 add_action( 'woocommerce_after_add_to_cart_button', 'aitrillion_price_drop_button' );
-
 function aitrillion_price_drop_button(){
 
     echo '<div class="aioPriceDrop" id="aioPriceDrop"></div>';
 
+    // get current product id
     $product_id = wc_get_product()->get_id();
 
+    // get current product detail
     $product = wc_get_product($product_id);
 
+    // get product variant
     $current_products = $product->get_children();
 
     echo '<select name="aio-variantid" style="display:none!important;">';
@@ -396,10 +433,6 @@ function aitrillion_price_drop_button(){
         foreach($current_products as $child_product){
 
             $variant = wc_get_product($child_product);
-
-            //echo '<br>'.$variant->get_name();
-
-            //echo '<pre>'; print_r($variant); echo '</pre>';
 
             if($variant->is_in_stock()){
                 echo '<option id="aio-variant-id-'.$variant->get_id().'" value="1">'.$variant->get_name().'</option>';
@@ -416,16 +449,19 @@ function aitrillion_price_drop_button(){
 }
 
 
+// create shortcode for back in stock and show after add to cart button on product detail page
 add_action( 'woocommerce_after_add_to_cart_button', 'aitrillion_back_in_stock_button' );
-
 function aitrillion_back_in_stock_button(){
 
     echo '<div class="aioBackInStock" id="aioBackInStock"></div>';
 
+    // get current product id
     $product_id = wc_get_product()->get_id();
 
+    // get current product detail
     $product = wc_get_product($product_id);
 
+    // get product variant
     $current_products = $product->get_children();
 
     echo '<select name="aio-variantid" style="display:none!important;">';
@@ -435,10 +471,6 @@ function aitrillion_back_in_stock_button(){
         foreach($current_products as $child_product){
 
             $variant = wc_get_product($child_product);
-
-            //echo '<br>'.$variant->get_name();
-
-            //echo '<pre>'; print_r($variant); echo '</pre>';
 
             if($variant->is_in_stock()){
                 echo '<option id="aio-variant-id-'.$variant->get_id().'" value="1">'.$variant->get_name().'</option>';

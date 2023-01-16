@@ -1,12 +1,16 @@
 <?php 
 
+    // create action for abandoned cart API
     add_action("wp_ajax_ait_abandonedcart", "aitrillion_abandonedcart");
     add_action("wp_ajax_nopriv_ait_abandonedcart", "aitrillion_abandonedcart");
 
+    // create filter for authentication check on each API call
     add_filter( 'rest_authentication_errors', 'aitrillion_auth_check', 99 );
 
+    // crete API end point
     add_action('rest_api_init', function () {
         
+        // register rest API end point and callback functions
         register_rest_route( 'aitrillion/v1', 'getshopinfo',array(
                     'methods'  => 'GET',
                     'callback' => 'aitrillion_getStoreDetail',
@@ -78,9 +82,7 @@
 
 
 /* 
-Check header authentication
-compare request username password with store username password.
-return error message if authentication fail
+* Check header authentication
 */
 
 function aitrillion_auth_check(){
@@ -88,11 +90,13 @@ function aitrillion_auth_check(){
     $request_user = '';
     $request_pw = '';
 
+    // get header auth username and password
     if(isset($_SERVER["PHP_AUTH_USER"]) && isset($_SERVER["PHP_AUTH_PW"])){
         $request_user = $_SERVER["PHP_AUTH_USER"];
         $request_pw = $_SERVER["PHP_AUTH_PW"];
     }
 
+    // get aitrillion key and password from store settings
     $api_key = get_option('_aitrillion_api_key');
     $api_pw = get_option('_aitrillion_api_password');
 
@@ -110,6 +114,7 @@ function aitrillion_auth_check(){
 
         //echo '<br>response: <pre>'; print_r($response); echo '</pre>';
 
+        // if error in response, return error message
         if( is_wp_error( $response ) ) {
             
             $error_message = $response->get_error_message();
@@ -133,6 +138,7 @@ function aitrillion_auth_check(){
             exit;
         }
 
+        // if header auth key and store key are not matched, throw error message
         if(($request_user != $api_key) || ($request_pw != $api_pw)){
 
             $return['result'] = false;
@@ -143,11 +149,26 @@ function aitrillion_auth_check(){
 
         }else{
 
+            // if API key are valid, return success
             return true;
         }
+    }else{
+        $return['result'] = false;
+        $return['message'] = 'API key not defined in AiTrillion settings';
+        
+        echo json_encode($return);
+        exit;
     }
 }
 
+
+/**
+* get store detail API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response store detail
+*/
 function aitrillion_getStoreDetail(WP_REST_Request $request){
 
     $endpoint = $request->get_route();
@@ -160,6 +181,7 @@ function aitrillion_getStoreDetail(WP_REST_Request $request){
 
     $super_admins = get_super_admins();
 
+    // if there are more than one super admin, select first super admin as shop owner
     if($super_admins){
         $admin = $super_admins[0];
         $admin_user = get_user_by('login', $admin);
@@ -207,10 +229,19 @@ function aitrillion_getStoreDetail(WP_REST_Request $request){
     return $response;
 }
 
+/**
+* get customers API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response store detail
+*/
 function aitrillion_getCustomers(WP_REST_Request $request){
 
+    // get API params
     $params = $request->get_query_params();
 
+    // set default result type as row, if result type not provided
     if(!isset($params['result_type']) || empty($params['result_type'])){
 
         $params['result_type'] = 'row';
@@ -218,12 +249,14 @@ function aitrillion_getCustomers(WP_REST_Request $request){
 
     $updated_at = array();
     
+    // filter result on updated at, if parameter passed
     if(isset($params['updated_at']) && !empty($params['updated_at'])){
         $updated_at = array( 
                             array( 'after' => $params['updated_at'], 'inclusive' => true )  
                         );
     }
 
+    // if result type count, return total customer count
     if($params['result_type'] == 'count'){
 
         $customer_query = new WP_User_Query(
@@ -254,8 +287,10 @@ function aitrillion_getCustomers(WP_REST_Request $request){
 
     }
 
+    // if result type row, return total customer data
     if($params['result_type'] == 'row'){
 
+        // define result filter variables
         if(isset($params['page'])  && !empty($params['page'])){
             $paged = $params['page'];
         }else{
@@ -299,6 +334,7 @@ function aitrillion_getCustomers(WP_REST_Request $request){
 
             foreach ( $customers as $customer_id ) {
 
+                // get customer data from common function
                 $c = aitrilltion_get_customer( $customer_id );
 
                 $return['customers'][] = $c;
@@ -336,8 +372,16 @@ function aitrillion_getCustomers(WP_REST_Request $request){
    
 }
 
+/**
+* get category API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response category detail
+*/
 function aitrillion_getCategories(WP_REST_Request $request){
 
+    // get API params
     $params = $request->get_query_params();
 
     if(!isset($params['result_type']) || empty($params['result_type'])){
@@ -345,6 +389,7 @@ function aitrillion_getCategories(WP_REST_Request $request){
         $params['result_type'] = 'row';
     }
 
+    // define query parameters
     $taxonomy     = 'product_cat';
     $orderby      = 'name';  
     $show_count   = 0;      // 1 for yes, 0 for no
@@ -364,6 +409,7 @@ function aitrillion_getCategories(WP_REST_Request $request){
     );
 
 
+    // define result filter variables
     if(isset($params['updated_at']) && !empty($params['updated_at'])){
         $args['date_created'] = '>'.$params['updated_at'];
     }
@@ -390,6 +436,7 @@ function aitrillion_getCategories(WP_REST_Request $request){
 
     //echo '<br>args: <pre>'; print_r($args); echo '</pre>';
 
+    // get categories from wordpress standard function
     $all_categories = get_categories( $args );
 
     if($params['result_type'] == 'count'){
@@ -434,6 +481,14 @@ function aitrillion_getCategories(WP_REST_Request $request){
     exit;
 }
 
+
+/**
+* get product API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response product detail
+*/
 function aitrillion_getProducts(WP_REST_Request $request){
 
     $params = $request->get_query_params();
@@ -525,6 +580,13 @@ function aitrillion_getProducts(WP_REST_Request $request){
 
 }
 
+/**
+* get order API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response order detail
+*/
 function aitrillion_getOrders(WP_REST_Request $request){
 
     $params = $request->get_query_params();
@@ -536,7 +598,9 @@ function aitrillion_getOrders(WP_REST_Request $request){
 
     if($params['result_type'] == 'count'){
         
+        // include all order status result
         $args['status'] = array_keys( wc_get_order_statuses() );
+        // include all order result
         $args['limit'] = -1;
 
         if(isset($params['updated_at']) && !empty($params['updated_at'])){
@@ -565,6 +629,7 @@ function aitrillion_getOrders(WP_REST_Request $request){
 
     if($params['result_type'] == 'row'){
 
+        // include all order status result
         $args['status'] = array_keys( wc_get_order_statuses() );
 
         if(isset($params['updated_at']) && !empty($params['updated_at'])){
@@ -618,6 +683,13 @@ function aitrillion_getOrders(WP_REST_Request $request){
 
 }
 
+/**
+* get products by category API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response product detail
+*/
 function aitrillion_getCategoryCollection( WP_REST_Request $request ){
 
     $params = $request->get_query_params();
@@ -635,6 +707,7 @@ function aitrillion_getCategoryCollection( WP_REST_Request $request ){
         $limit = 10;
     }
 
+    // prepare query parameter
     $args = array(
         'post_type'             => 'product',
         'post_status'           => 'publish',
@@ -677,12 +750,20 @@ function aitrillion_getCategoryCollection( WP_REST_Request $request ){
 
 }
 
+/**
+* search categories by name API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response category detail
+*/
 function aitrillion_searchCategory(WP_REST_Request $request){
 
     $params = $request->get_query_params();
 
     $cat_name = $params['title'];
 
+    // prepare query parameter
     $args['taxonomy'] = 'product_cat';
     $args['hide_empty'] = 0;
     $args['name__like'] = $cat_name;
@@ -705,6 +786,7 @@ function aitrillion_searchCategory(WP_REST_Request $request){
         $name = array();
 
         if($category->parent > 0){
+            // recursive function to get parent category name
             $name = hierarchical_category_tree($category->parent);
         }
 
@@ -728,6 +810,13 @@ function aitrillion_searchCategory(WP_REST_Request $request){
     return $response;
 }
 
+/**
+* recursive function to get category parent title
+*
+* @param int $cat parent category id
+*
+* @return string category name
+*/
 function hierarchical_category_tree( $cat ) {
 
     global $title;
@@ -750,6 +839,13 @@ function hierarchical_category_tree( $cat ) {
         }
 }
 
+/**
+* get product detail by id API function
+*
+* @param WP_REST_Request $request The log text
+*
+* @return WP_REST_Response product detail
+*/
 function aitrillion_getproductbyid(WP_REST_Request $request){
 
     $params = $request->get_query_params();
@@ -795,10 +891,16 @@ function aitrillion_getproductbyid(WP_REST_Request $request){
     
 }
 
+/**
+* update script version API function
+*
+*/
 function aitrillion_updateScriptVersion(){
 
+    // get current script verstion
     $script_version = get_option('_aitrillion_script_version');
 
+    // increment in previous version if available or set as 1
     if(empty($script_version)){
         $script_version = 1;
     }else{
@@ -822,6 +924,12 @@ function aitrillion_updateScriptVersion(){
 
 }
 
+/**
+* update blocked loyalty members id API function
+*
+* @param WP_REST_Request $request The log text
+*
+*/
 function aitrillion_blockLoyaltyMember(WP_REST_Request $request){
 
     $params = $request->get_query_params();
@@ -842,12 +950,19 @@ function aitrillion_blockLoyaltyMember(WP_REST_Request $request){
 
 }
 
+/**
+* get abandoned cart detail API function
+*
+*
+*/
 function aitrillion_abandonedcart(){
-    
+ 
+    // get quote id from query string   
     $cart_id = sanitize_text_field($_GET['quoteid']);
 
     global $wpdb;
 
+    // get all cart sessions
     $order_sessions = $wpdb->get_results( "SELECT * FROM ". $wpdb->prefix."woocommerce_sessions");
 
     $items = array();
@@ -858,12 +973,14 @@ function aitrillion_abandonedcart(){
 
         $session_value = unserialize($order->session_value);
 
+        // check if quote id is same as cart id, prepare abandoned cart detail
         if(isset($session_value['cart_id']) && $session_value['cart_id'] == $cart_id){
 
             $abandonedcart = true;
 
             $cart = unserialize($session_value['cart']);
 
+            // if cart have items
             if(is_array($cart) && !empty($cart)){
 
                 $i = 1;
@@ -871,11 +988,10 @@ function aitrillion_abandonedcart(){
 
                 foreach($cart as $key => $cart_item){
 
-                    //echo '<pre>'; print_r($cart_item); echo '</pre>';
-
                     $line_item['id'] = $i;
                     $line_item['product_id'] = $cart_item['product_id'];
 
+                    // if item has variant, get variant detail
                     if(empty($cart_item['variation_id'])){
                         $line_item['variant_id'] = $cart_item['product_id'];
 
@@ -944,6 +1060,12 @@ function aitrillion_abandonedcart(){
 
 }
 
+/**
+* create discount coupon API function
+*
+* @param WP_REST_Request $request The log text
+*
+*/
 function aitrillion_createCoupon(WP_REST_Request $request){
 
     $body = $request->get_body();

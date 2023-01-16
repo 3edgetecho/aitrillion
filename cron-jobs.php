@@ -2,7 +2,6 @@
 
 
 // If a cron job interval does not already exist, create one.
- 
 add_filter( 'cron_schedules', 'check_every_minute' );
 
 function check_every_minute( $schedules ) {
@@ -15,7 +14,6 @@ function check_every_minute( $schedules ) {
 }
 
 // Unless an event is already scheduled, create one.
- 
 add_action( 'init', 'aitrillion_data_sync_cron' );
  
 function aitrillion_data_sync_cron() {
@@ -24,10 +22,15 @@ function aitrillion_data_sync_cron() {
         wp_schedule_event( time(), 'every_minute', 'aitrillion_data_sync_schedule' );
     }
 }
- 
+
+// call sync function on cron action 
 add_action( 'aitrillion_data_sync_schedule', 'aitrillion_data_sync_action' );
 
 
+/**
+* cron data sync function, execute on each cron call
+* 
+*/
 function aitrillion_data_sync_action() { 
 
     sync_new_customers();
@@ -50,18 +53,25 @@ function aitrillion_data_sync_action() {
 
 }
 
-
+/**
+* sync new customers
+*
+*/
 function sync_new_customers(){
     
+    // get ids of new customer registered since last cron call
     $users = get_option( '_aitrillion_created_users' );
 
     aitrillion_api_log('new user sync log '.print_r($users, true).PHP_EOL);
 
+    // variable to store failed sync users id
     $failed_sync_users = array();
 
     if(!empty($users)){
 
+        // remove duplicate ids
         $users = array_unique($users);
+
         $synced_users = array();
 
         foreach($users as $user_id){
@@ -70,9 +80,8 @@ function sync_new_customers(){
 
             $c = array();
 
+            // get customer data from common function
             $c = aitrilltion_get_customer( $user_id );
-
-            //aitrillion_api_log('customer '.print_r($c, true).PHP_EOL);
             
             $json_payload = json_encode($c);
 
@@ -92,10 +101,16 @@ function sync_new_customers(){
 
             $r = json_decode($response['body']);
 
+            // if sync failed, store failed user into separate variable
             if(!isset($r->status) && $r->status != 'success'){
+
                 $failed_sync_users_data[$user_id][] = array('user_id' => $user_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                
                 $failed_sync_users[] = $user_id;
+
             }else{
+
+                // flag this user as synced successfully
                 update_user_meta($user_id, '_aitrillion_user_sync', 'true');
                 $synced_users[] = $user_id;
             }
@@ -104,35 +119,26 @@ function sync_new_customers(){
         }
 
         if(!empty($failed_sync_users)){
-
+            // if there are failed sync users, add them into next cron queue
             update_option('_aitrillion_created_users', $failed_sync_users);
             update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
 
         }else{
 
-            $previous_failed_users = get_option( '_aitrillion_failed_sync_users' );
-
-            aitrillion_api_log('previous_failed_users: '.PHP_EOL.print_r($previous_failed_users, true));
-
-            if($previous_failed_users){
-                foreach($previous_failed_users as $u => $user){
-                    if(in_array($u, $synced_users)){
-                        unset($previous_failed_users[$u]);
-                    }
-                }
-
-                aitrillion_api_log('after unset syned users: '.PHP_EOL.print_r($previous_failed_users, true));
-
-                update_option('_aitrillion_failed_sync_users', $previous_failed_users);
-            }
-
+            // all user synced successfully, clear queue
             delete_option('_aitrillion_created_users');    
         }
     }
 }
 
+
+/**
+* sync modified customers
+*
+*/
 function sync_updated_customers(){
 
+    // get ids of modified customers since last cron call
     $users = get_option( '_aitrillion_updated_users' );
 
     aitrillion_api_log('udpated users sync log '.print_r($users, true).PHP_EOL);
@@ -141,16 +147,16 @@ function sync_updated_customers(){
 
     if(!empty($users)){
 
+        // remove duplicate ids
         $users = array_unique($users);
 
         $synced_users = array();
 
         foreach($users as $user_id){
 
-            aitrillion_api_log('user id '.$user_id.PHP_EOL);
-
             $c = array();
 
+            // get customer data from common function
             $c = aitrilltion_get_customer( $user_id );
 
             //aitrillion_api_log('customer '.print_r($c, true).PHP_EOL);
@@ -176,10 +182,12 @@ function sync_updated_customers(){
 
             $r = json_decode($response['body']);
 
+            // if sync failed, store failed user into separate variable
             if(!isset($r->status) && $r->status != 'success'){
                 $failed_sync_users_data[$user_id][] = array('user_id' => $user_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
                 $failed_sync_users[] = $user_id;
             }else{
+                // flag this user as synced successfully
                 update_user_meta($user_id, '_aitrillion_user_sync', 'true');
                 $synced_users[] = $user_id;
             }
@@ -189,39 +197,34 @@ function sync_updated_customers(){
     }
 
     if(!empty($failed_sync_users)){
+        
+        // if there are failed sync users, add them into next cron queue
         update_option('_aitrillion_updated_users', $failed_sync_users);
         update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
+
     }else{
 
-        $previous_failed_users = get_option( '_aitrillion_failed_sync_users' );
-
-        aitrillion_api_log('previous_failed_users: '.PHP_EOL.print_r($previous_failed_users, true));
-
-        if($previous_failed_users){
-            foreach($previous_failed_users as $u => $user){
-                if(in_array($u, $synced_users)){
-                    unset($previous_failed_users[$u]);
-                }
-            }
-
-            aitrillion_api_log('after unset syned users: '.PHP_EOL.print_r($previous_failed_users, true));
-
-            update_option('_aitrillion_failed_sync_users', $previous_failed_users);
-        }
-
+        // all user synced successfully, clear queue
         delete_option('_aitrillion_updated_users');    
     }
 }
 
-
+/**
+* sync deleted customers
+*
+*/
 function sync_deleted_customers(){
 
+    // get ids of deleted customers since last cron call
     $deleted_users = get_option( '_aitrillion_deleted_users' );
 
     aitrillion_api_log('deleted users sync log: '.print_r($deleted_users, true).PHP_EOL);
 
+    $failed_sync_users = array();
+
     if(!empty($deleted_users)){
 
+        // remove duplicate ids
         $deleted_users = array_unique($deleted_users);
 
         foreach($deleted_users as $k => $user_id){
@@ -249,23 +252,48 @@ function sync_deleted_customers(){
 
             $r = json_decode($response['body']);
 
+            // if sync failed, store failed user into separate variable
+            if(!isset($r->status) && $r->status != 'success'){
+                $failed_sync_users_data[$user_id][] = array('user_id' => $user_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_users[] = $user_id;
+            }
+
             aitrillion_api_log('Delete customer API Response for user id: '.$user_id.PHP_EOL.print_r($r, true));
 
         }
 
-        delete_option('_aitrillion_deleted_users');
+        if(!empty($failed_sync_users)){
+        
+            // if there are failed sync users, add them into next cron queue
+            update_option('_aitrillion_deleted_users', $failed_sync_users);
+            update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
+
+        }else{
+
+            // all user synced successfully, clear queue
+            delete_option('_aitrillion_deleted_users');    
+        }
     }
 
 }
 
+/**
+* sync new products
+*
+*/
 function sync_new_products(){
 
+    // get ids of new products created since last cron call
     $products = get_option( '_aitrillion_created_products' );
 
     aitrillion_api_log('new product sync log '.print_r($products, true).PHP_EOL);
 
+    // variable to store failed sync product id
+    $failed_sync_products = array();
+
     if(!empty($products)){
 
+        // remove duplicate ids
         $products = array_unique($products);
 
         foreach($products as $product_id){
@@ -299,24 +327,52 @@ function sync_new_products(){
 
             $r = json_decode($response['body']);
 
-            update_post_meta($product_id, '_aitrillion_product_sync', 'true');
+            // if sync failed, store failed product into separate variable
+            if(!isset($r->status) && $r->status != 'success'){
+                $failed_sync_products_data[$product_id][] = array('product_id' => $product_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_products[] = $product_id;
+            }else{
+
+                // flag this product as synced successfully
+                update_post_meta($product_id, '_aitrillion_product_sync', 'true');
+                $synced_products[] = $product_id;
+            }
 
             aitrillion_api_log('API Response for product id: '.$product_id.PHP_EOL.print_r($r, true));
         }
 
-        delete_option('_aitrillion_created_products');
+        if(!empty($failed_sync_products)){
+        
+            // if there are failed sync products, add them into next cron queue
+            update_option('_aitrillion_created_products', $failed_sync_products);
+            update_option('_aitrillion_failed_sync_products', $failed_sync_products_data);
+
+        }else{
+
+            // all products synced successfully, clear queue
+            delete_option('_aitrillion_created_products');    
+        }
     }
 
 }
 
+/**
+* sync modified products
+*
+*/
 function sync_updated_products(){
 
+    // get ids of modified products created since last cron call
     $products = get_option( '_aitrillion_updated_products' );
 
     aitrillion_api_log('updated product sync log '.print_r($products, true).PHP_EOL);
 
+    // variable to store failed sync product id
+    $failed_sync_products = array();
+
     if(!empty($products)){
 
+        // remove duplicate ids
         $products = array_unique($products);
 
         foreach($products as $product_id){
@@ -350,23 +406,52 @@ function sync_updated_products(){
 
             $r = json_decode($response['body']);
 
-            update_post_meta($product_id, '_aitrillion_product_sync', 'true');
+            // if sync failed, store failed product into separate variable
+            if(!isset($r->status) && $r->status != 'success'){
+                $failed_sync_products_data[$product_id][] = array('product_id' => $product_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_products[] = $product_id;
+            }else{
+
+                // flag this product as synced successfully
+                update_post_meta($product_id, '_aitrillion_product_sync', 'true');
+                $synced_products[] = $product_id;
+            }
 
             aitrillion_api_log('API Response for product id: '.$product_id.PHP_EOL.print_r($r, true));
         }
 
-        delete_option('_aitrillion_updated_products');
+        if(!empty($failed_sync_products)){
+        
+            // if there are failed sync products, add them into next cron queue
+            update_option('_aitrillion_updated_products', $failed_sync_products);
+            update_option('_aitrillion_failed_sync_products', $failed_sync_products_data);
+
+        }else{
+
+            // all products synced successfully, clear queue
+            delete_option('_aitrillion_updated_products');    
+        }
     }
 }
 
+
+/**
+* sync deleted products
+*
+*/
 function sync_deleted_products(){
 
+    // get ids of deleted products since last cron call
     $deleted_products = get_option( '_aitrillion_deleted_products' );
 
     aitrillion_api_log('deleted product sync log: '.print_r($deleted_products, true).PHP_EOL);
 
+    // variable to store failed sync product id
+    $failed_sync_products = array();
+
     if(!empty($deleted_products)){
 
+        // remove duplicate ids
         $deleted_products = array_unique($deleted_products);
 
         aitrillion_api_log('deleted product not empty: '.PHP_EOL);
@@ -396,17 +481,38 @@ function sync_deleted_products(){
 
             $r = json_decode($response['body']);
 
+            // if sync failed, store failed product into separate variable
+            if(!isset($r->status) && $r->status != 'success'){
+                $failed_sync_products_data[$product_id][] = array('product_id' => $post_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_products[] = $post_id;
+            }
+
             aitrillion_api_log('Product Delete: product id: '.$post_id.PHP_EOL.print_r($r, true));
         }
 
-        delete_option('_aitrillion_deleted_products');
+        if(!empty($failed_sync_products)){
+        
+            // if there are failed sync products, add them into next cron queue
+            update_option('_aitrillion_deleted_products', $failed_sync_products);
+            update_option('_aitrillion_failed_sync_products', $failed_sync_products_data);
+
+        }else{
+
+            // all user synced successfully, clear queue
+            delete_option('_aitrillion_deleted_products');    
+        }
 
         aitrillion_api_log('after product delete, delete option : '.PHP_EOL);
     }
 }
 
+/**
+* sync new categories
+*
+*/
 function sync_new_categories(){
-    
+
+    // get ids of new categories since last cron call
     $categories = get_option( '_aitrillion_created_categories' );
 
     aitrillion_api_log('new category sync log '.print_r($categories, true).PHP_EOL);
@@ -415,6 +521,7 @@ function sync_new_categories(){
 
     if(!empty($categories)){
 
+        // remove duplicate ids
         $categories = array_unique($categories);
         $synced_categories = array();
 
@@ -474,10 +581,11 @@ function sync_new_categories(){
             $r = json_decode($response['body']);
 
             if(!isset($r->status) && $r->status != 'success'){
+                // if sync failed, store failed categories into separate variable
                 $failed_sync_category_data[$category_id][] = array('category_id' => $category_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
                 $failed_sync_categories[] = $category_id;
             }else{
-                
+                // flag this category as synced successfully
                 update_term_meta($category_id, '_aitrillion_category_sync', 'true');
                 $synced_categories[] = $category_id;
             }
@@ -486,35 +594,25 @@ function sync_new_categories(){
         }
 
         if(!empty($failed_sync_categories)){
-
+            // if there are failed sync category, add them into next cron queue
             update_option('_aitrillion_created_categories', $failed_sync_categories);
             update_option('_aitrillion_failed_sync_categories', $failed_sync_category_data);
 
         }else{
 
-            $previous_failed_categories = get_option( '_aitrillion_failed_sync_categories' );
-
-            aitrillion_api_log('previous_failed_categories: '.PHP_EOL.print_r($previous_failed_categories, true));
-
-            if($previous_failed_categories){
-                foreach($previous_failed_categories as $c => $category){
-                    if(in_array($c, $synced_categories)){
-                        unset($previous_failed_categories[$c]);
-                    }
-                }
-
-                aitrillion_api_log('after unset syned categories: '.PHP_EOL.print_r($previous_failed_categories, true));
-
-                update_option('_aitrillion_failed_sync_categories', $previous_failed_categories);
-            }
-
+            // all categories synced successfully, clear queue
             delete_option('_aitrillion_created_categories');    
         }
     }
 }
 
+/**
+* sync modified categories
+*
+*/
 function sync_updated_categories(){
     
+    // get ids of modified categories since last cron call
     $categories = get_option( '_aitrillion_updated_categories' );
 
     aitrillion_api_log('update category sync log '.print_r($categories, true).PHP_EOL);
@@ -523,6 +621,7 @@ function sync_updated_categories(){
 
     if(!empty($categories)){
 
+        // remove duplicate ids
         $categories = array_unique($categories);
         $synced_categories = array();
 
@@ -582,10 +681,11 @@ function sync_updated_categories(){
             $r = json_decode($response['body']);
 
             if(!isset($r->status) && $r->status != 'success'){
+                // if sync failed, store failed categories into separate variable
                 $failed_sync_category_data[$category_id][] = array('category_id' => $category_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
                 $failed_sync_categories[] = $category_id;
             }else{
-                
+                // flag this category as synced successfully
                 update_term_meta($category_id, '_aitrillion_category_sync', 'true');
                 $synced_categories[] = $category_id;
             }
@@ -594,38 +694,31 @@ function sync_updated_categories(){
         }
 
         if(!empty($failed_sync_categories)){
-
+            // if there are failed sync category, add them into next cron queue
             update_option('_aitrillion_updated_categories', $failed_sync_categories);
             update_option('_aitrillion_failed_sync_categories', $failed_sync_category_data);
 
         }else{
 
-            $previous_failed_categories = get_option( '_aitrillion_failed_sync_categories' );
-
-            aitrillion_api_log('previous_failed_categories: '.PHP_EOL.print_r($previous_failed_categories, true));
-
-            if($previous_failed_categories){
-                foreach($previous_failed_categories as $c => $category){
-                    if(in_array($c, $synced_categories)){
-                        unset($previous_failed_categories[$c]);
-                    }
-                }
-
-                aitrillion_api_log('after unset syned categories: '.PHP_EOL.print_r($previous_failed_categories, true));
-
-                update_option('_aitrillion_failed_sync_categories', $previous_failed_categories);
-            }
-
+            // all categories synced successfully, clear queue
             delete_option('_aitrillion_updated_categories');    
         }
     }
 }
 
+
+/**
+* sync deleted categories
+*
+*/
 function sync_deleted_categories(){
 
+    // get ids of deleted categories since last cron call
     $deleted_categories = get_option( '_aitrillion_deleted_categories' );
 
     aitrillion_api_log('deleted categories sync log: '.print_r($deleted_categories, true).PHP_EOL);
+
+    $failed_sync_categories = array();
 
     if(!empty($deleted_categories)){
 
@@ -656,23 +749,48 @@ function sync_deleted_categories(){
 
             $r = json_decode($response['body']);
 
+            if(!isset($r->status) && $r->status != 'success'){
+                // if sync failed, store failed categories into separate variable
+                $failed_sync_category_data[$category_id][] = array('category_id' => $category_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_categories[] = $category_id;
+            }
+
             aitrillion_api_log('API Response for category id: '.$category_id.PHP_EOL.print_r($r, true));
 
         }
 
-        delete_option('_aitrillion_deleted_categories');
+        if(!empty($failed_sync_categories)){
+        
+            // if there are failed sync category, add them into next cron queue
+            update_option('_aitrillion_deleted_categories', $failed_sync_categories);
+            update_option('_aitrillion_failed_sync_categories', $failed_sync_category_data);
+
+        }else{
+
+            // all user synced successfully, clear queue
+            delete_option('_aitrillion_deleted_categories');    
+        }
     }
 
 }
 
+/**
+* sync new orders
+*
+*/
 function sync_new_orders(){
 
+    // get ids of new order created since last cron call
     $orders = get_option( '_aitrillion_created_orders' );
 
     aitrillion_api_log('new order sync log '.print_r($orders, true).PHP_EOL);
 
+    // variable to store failed sync order id
+    $failed_sync_order = array();
+
     if(!empty($orders)){
 
+        // remove duplicate ids
         $orders = array_unique($orders);
 
         foreach($orders as $order_id){
@@ -708,28 +826,55 @@ function sync_new_orders(){
 
             $r = json_decode($response['body']);
 
-            update_post_meta($order_id, '_aitrillion_order_sync', 'true');
+            // if sync failed, store failed order into separate variable
+            if(!isset($r->status) && $r->status != 'success'){
+                $failed_sync_orders_data[$order_id][] = array('order_id' => $order_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_order[] = $order_id;
+            }else{
+
+                // flag this order as synced successfully
+                update_post_meta($order_id, '_aitrillion_order_sync', 'true');
+                $synced_orders[] = $order_id;
+            }
 
             aitrillion_api_log('API Response for order id: '.$order_id.PHP_EOL.print_r($r, true));
         }
 
-        delete_option('_aitrillion_created_orders');
+        if(!empty($failed_sync_order)){
+        
+            // if there are failed sync orders, add them into next cron queue
+            update_option('_aitrillion_created_orders', $failed_sync_order);
+            update_option('_aitrillion_failed_sync_orders', $failed_sync_orders_data);
+
+        }else{
+
+            // all order synced successfully, clear queue
+            delete_option('_aitrillion_created_orders');    
+        }
     }
 }
 
+/**
+* sync modified orders
+*
+*/
 function sync_updated_orders(){
 
+    // get ids of modified orders created since last cron call
     $orders = get_option( '_aitrillion_updated_orders' );
 
     aitrillion_api_log('updated order sync log '.print_r($orders, true).PHP_EOL);
 
+    // variable to store failed sync order id
+    $failed_sync_order = array();
+
     if(!empty($orders)){
 
+        // remove duplicate ids
         $orders = array_unique($orders);
 
         foreach($orders as $order_id){
-
-            // Here comes your code...
+            
             $order = wc_get_order( $order_id );
 
             $o = aitrillion_get_order($order);
@@ -759,23 +904,51 @@ function sync_updated_orders(){
 
             $r = json_decode($response['body']);
 
-            update_post_meta($order_id, '_aitrillion_order_sync', 'true');
+            // if sync failed, store failed order into separate variable
+            if(!isset($r->status) && $r->status != 'success'){
+
+                $failed_sync_orders_data[$order_id][] = array('order_id' => $order_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_order[] = $order_id;
+
+            }else{
+
+                // flag this order as synced successfully
+                update_post_meta($order_id, '_aitrillion_order_sync', 'true');
+                $synced_orders[] = $order_id;
+            }
 
             aitrillion_api_log('order updated: order id '.$order_id.PHP_EOL.print_r($r, true));
         }
 
-        delete_option('_aitrillion_updated_orders');
+        if(!empty($failed_sync_order)){
+        
+            // if there are failed sync orders, add them into next cron queue
+            update_option('_aitrillion_updated_orders', $failed_sync_order);
+            update_option('_aitrillion_failed_sync_orders', $failed_sync_orders_data);
+
+        }else{
+
+            // all order synced successfully, clear queue
+            delete_option('_aitrillion_updated_orders');
+        }
     }
 }
 
+
+/**
+* sync deleted orders
+*
+*/
 function sync_deleted_orders(){
 
+    // get ids of deleted orders created since last cron call
     $deleted_orders = get_option( '_aitrillion_deleted_orders' );
 
     aitrillion_api_log('deleted order sync log: '.print_r($deleted_orders, true).PHP_EOL);
 
     if(!empty($deleted_orders)){
 
+        // remove duplicate ids
         $deleted_orders = array_unique($deleted_orders);
 
         foreach($deleted_orders as $k => $post_id){
@@ -803,16 +976,39 @@ function sync_deleted_orders(){
 
             $r = json_decode($response['body']);
 
+            // if sync failed, store failed order into separate variable
+            if(!isset($r->status) && $r->status != 'success'){
+
+                $failed_sync_orders_data[$order_id][] = array('order_id' => $order_id, 'error' => $r->message, 'date' => date('Y-m-d H:i:s'));
+                $failed_sync_order[] = $order_id;
+
+            }
+
             aitrillion_api_log('Order Delete: Order id: '.$post_id.PHP_EOL.print_r($r, true));
 
         }
 
-        delete_option('_aitrillion_deleted_orders');
+        if(!empty($failed_sync_order)){
+        
+            // if there are failed sync orders, add them into next cron queue
+            update_option('_aitrillion_deleted_orders', $failed_sync_order);
+            update_option('_aitrillion_failed_sync_order', $failed_sync_orders_data);
+
+        }else{
+
+            // all user synced successfully, clear queue
+            delete_option('_aitrillion_deleted_orders');    
+        }
     }
 }
 
+/**
+* sync shop detail
+*
+*/
 function sync_shop_update(){
 
+    // get flag if shop updated since last cron call
     $shop_update = get_option( '_aitrillion_shop_updated' );
 
     if($shop_update){

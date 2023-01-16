@@ -1,6 +1,12 @@
 <?php
 
-
+/**
+* write messages into log file
+*
+* @param string $message The log text
+*
+* @return null
+*/
 function aitrillion_api_log($message = ''){
 
     $log = '------------'.date('Y-m-d H:i:s').'---------------'.PHP_EOL;
@@ -10,11 +16,17 @@ function aitrillion_api_log($message = ''){
 }
 
 
+/**
+* prepare woocommerce customer detail by customer id
+*
+* @param int $customer_id customer id
+*
+* @return array customer detail
+*/
 function aitrilltion_get_customer( $customer_id ){
 
+        // initialize customer object from woocommerce customer class
         $customer = new WC_Customer( $customer_id );
-
-        $modified_date = $customer->get_date_modified();
 
         $c = array();
 
@@ -27,24 +39,22 @@ function aitrilltion_get_customer( $customer_id ){
         $c['created_at'] = $customer->get_date_created()->date('Y-m-d H:i:s');
         $c['accepts_marketing'] = true;
 
+        // if no customer edit date available, assign created date as updated date
         if(!empty($customer->get_date_modified())){
             $c['updated_at'] = $customer->get_date_modified()->date('Y-m-d H:i:s');
         }else{
             $c['updated_at'] = $customer->get_date_created()->date('Y-m-d H:i:s');
         }
 
+        $modified_date = $customer->get_date_modified();
 
         $c['orders_count'] = $customer->get_order_count();
         $c['total_spent'] = $customer->get_total_spent();
 
         $last_order = $customer->get_last_order();
 
-
         if(!empty($last_order)){
-
             $last_order_id = $last_order->get_id();
-
-
             $c['last_order_name'] = $last_order_id;
             $c['last_order_id'] = $last_order_id;
 
@@ -96,6 +106,14 @@ function aitrilltion_get_customer( $customer_id ){
 
 }
 
+
+/**
+* prepare woocommerce product detail by product object
+*
+* @param object $product product object
+*
+* @return array product detail
+*/
 function aitrillion_get_product( $product )
 {
 
@@ -108,6 +126,7 @@ function aitrillion_get_product( $product )
     $p['updated_at'] = $product->get_date_modified()->date('Y-m-d H:i:s');
     $p['published_at'] = $p['created_at'];
 
+    // get product keywords/tags
     $terms = wp_get_post_terms( $product->get_id(), 'product_tag' );
  
     $tags = null;
@@ -124,9 +143,7 @@ function aitrillion_get_product( $product )
 
     $p['tags'] = $tags;
 
-    //$p['body_html'] = $product->get_description();
-    //$p['published_scope'] = 'web';
-
+    // check if product have variant, otherwise assign main product detail as variant
     if($product->get_type() == 'variable'){
 
         $available_variations = $product->get_available_variations();
@@ -166,16 +183,16 @@ function aitrillion_get_product( $product )
             $a['old_inventory_quantity'] = null;
             $a['presentment_prices'] = null;
             $a['requires_shipping'] = $product->get_virtual() ? false : true;
-            
+
+            // get product variant options
             $option_count = 1;
             foreach($variations['attributes'] as $key => $val){
 
                 if(isset($val) && !empty($val)){
 
+                    // variant options are stored with prefix attribute_pa_*, remove prefix and get option name
                     $option_name = substr($key, 9); // $key is attribute_pa_* or attribute_*
-
                     $a['title'] = $option_name;
-
                     $a['option'.$option_count] = $val;
 
                     $option_count++;
@@ -228,10 +245,9 @@ function aitrillion_get_product( $product )
         
     }
 
+    // get product main image
     $image_id        = $product->get_image_id();
-
     $img = array();
-
     if ( $image_id ) {
         $image_url = wp_get_attachment_image_url( $image_id, 'full' );
 
@@ -249,9 +265,10 @@ function aitrillion_get_product( $product )
                     );
     }
 
+    // get product additional images
     $attachment_ids  = $product->get_gallery_image_ids();
-
     $position = 2;
+
     foreach ( $attachment_ids as $attachment_id ) {
         $image_url = wp_get_attachment_url( $attachment_id );
 
@@ -277,6 +294,14 @@ function aitrillion_get_product( $product )
     return $p;
 }
 
+
+/**
+* prepare woocommerce order detail by order object
+*
+* @param object $order order object
+*
+* @return array order detail
+*/
 function aitrillion_get_order( $order ){
 
 
@@ -285,6 +310,7 @@ function aitrillion_get_order( $order ){
         return false;
     }
 
+    // map wooocommerce order status with shopify
     if($order->get_status() == 'completed'){
 
         $c_date = $order->get_date_completed();
@@ -314,12 +340,6 @@ function aitrillion_get_order( $order ){
         $o['fulfillment_status'] = 'Unfulfilled'; 
         $o['financial_status'] = 'Unpaid';
     }
-
-    //$o['fulfillment_status'] = ($order->get_status() == 'completed') ? 'shipped' : 'unshipped' ; 
-    //$o['financial_status'] = $order->get_status();
-
-
-    //cancelled, completed
 
     $o['id'] = $order->get_id();
     $o['email'] = $order->get_billing_email();
@@ -352,6 +372,7 @@ function aitrillion_get_order( $order ){
     $o['referring_site'] = '';
     $o['order_status_url'] = $order->get_view_order_url();
 
+    // if discount coupon applied to order, get the details
     if($order->get_coupon_codes()){
 
         $coupon_codes = $order->get_coupon_codes();
@@ -478,9 +499,10 @@ function aitrillion_get_order( $order ){
     $user_id = $order->get_user_id();
 
     $o['customer']['guest'] = $order->get_user_id() == 0 ? 'yes' : 'no';
-
     $o['customer']['phone'] = $order->get_billing_phone();
 
+
+    // if order is placed by registered user, get customer detail, otherwise, get guest user detail
     if($order->get_customer_id()){
 
         $customer = new WC_Customer( $order->get_customer_id() );
@@ -491,7 +513,6 @@ function aitrillion_get_order( $order ){
         $o['customer']['verified_email'] = true;
 
         $last_order = $customer->get_last_order();
-       
 
        if(!empty($last_order)){
             
@@ -560,8 +581,8 @@ function aitrillion_get_order( $order ){
 
     $o['fulfillments'] = array();
 
+    // if order is refunded, get order refund detail
     $order_refunds = $order->get_refunds();
-
     if($order_refunds){
 
         $order_refund = $order_refunds[0];
@@ -589,12 +610,17 @@ function aitrillion_get_order( $order ){
         $o['refunds'] = array();    
     }
 
-    // financial_status
-    // fulfillment_status
-
     return $o;
 }
 
+
+/**
+* prepare woocommerce category detail by category object
+*
+* @param object $category category object
+*
+* @return array category detail
+*/
 function aitrilltion_get_category( $category ){
 
     $c['id'] = $category->cat_ID;
@@ -607,6 +633,7 @@ function aitrilltion_get_category( $category ){
     $c['body_html'] = $category->category_description;
     $c['published_at'] = '';
 
+    // get category images
     $thumbnail_id = get_woocommerce_term_meta( $category->cat_ID, 'thumbnail_id', true );
 
     if($thumbnail_id){
@@ -626,6 +653,5 @@ function aitrilltion_get_category( $category ){
     }
 
     return $c;
-
 }
 ?>
