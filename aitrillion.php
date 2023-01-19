@@ -2,14 +2,13 @@
 
 /**
  * Plugin Name:       AiTrillion
- * Plugin URI:        https://www.aitrillion.com/
- * Description:       AiTrillion Integration
+ * Plugin URI:        https://wordpress.org/plugins/aitrillion/
+ * Description:       Exclusive Loyalty Program with Email Marketing, SMS, Push, Product Reviews, Membership & 11+ feature
  * Version:           1.0
  * Requires at least: 5.2
- * Requires PHP:      7.4
+ * Requires PHP:      7.2
  * Author:            AiTrillion
- * License:           GPL v2 or later
- * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Author URI:        https://www.aitrillion.com
  */
 
 if (!defined('ABSPATH')) {
@@ -41,7 +40,7 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
     // Define end point of Ai Trillion 
     define('AITRILLION_END_POINT', 'https://connector-api-dev.aitrillion.com/');
-    define('AITRILLION_APP_NAME', 'Aitrillion Wordpress');
+    define('AITRILLION_APP_NAME', 'Aitrillion');
 
     $domain = preg_replace("(^https?://)", "", site_url() );
 
