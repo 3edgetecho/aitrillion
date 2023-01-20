@@ -423,6 +423,14 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
         }
     
 }else{
-    echo 'This plugin works with woocommerce only. Please install and activate woocommerce first.';
+    //echo 'This plugin works with woocommerce only. Please install and activate woocommerce first.';
+
+    function aitrillion_admin_notice() {
+    echo '<div class="notice notice-warning is-dismissible">
+          <p><strong>AiTrillion requires woocommerce.</strong> Please install and activate woocommerce.</p>
+          </div>'; 
+    }
+    add_action( 'admin_notices', 'aitrillion_admin_notice' );
+
 }
 
