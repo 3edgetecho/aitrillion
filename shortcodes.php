@@ -146,6 +146,10 @@ function aitrillion_script() {
         wp_enqueue_script( 'aitrillion-script', $url[0].'?v='.$script_version.'&'.$url[1], array(), null);
 
         wp_add_inline_script('aitrillion-script', $script, 'after');     
+
+        wp_enqueue_style( 'bootstrapcss','https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css', false, null );
+
+        wp_enqueue_style( 'fontawesomecss','http://netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css', false, null );
     }
 
     
