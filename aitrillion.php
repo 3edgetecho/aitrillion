@@ -100,6 +100,34 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
 
         }
 
+        add_action('init', 'start_session', 1);
+
+        function start_session() {
+            if(!session_id()) {
+                session_start();
+            }
+        }
+
+        add_action( 'admin_action_aitrillion_clear_log', 'aitrillion_clear_log' );
+        function aitrillion_clear_log()
+        {
+            file_put_contents(AITRILLION_PATH.'aitrillion-log.txt', '');
+
+            add_action( 'admin_notices', 'aitrillion_clear_log_notice' );
+
+            $_SESSION['msg'] = 'Log Cleared';
+
+            wp_redirect( admin_url( 'admin.php' ).'?page=aitrillion.php' );
+            exit();
+        }
+
+        function aitrillion_clear_log_notice() {
+        echo '<div class="notice notice-warning is-dismissible">
+              <p><strong>AiTrillion log cleared</p>
+              </div>'; 
+        }
+        
+
      // display the admin options page
         function aitrillion_options_page() {
     ?>
@@ -117,6 +145,15 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                     <div class="card" style="max-width: 700px">
                         Login to <a href="https://app.aitrillion.com/" target="_blank">AiTrillion</a>
                     </div>
+
+                    <?php 
+                        if(isset($_SESSION['msg']) && !empty($_SESSION['msg'])){
+                    ?>
+                        <div class="card" style="max-width: 700px; color: green;">Log file cleared</div>
+                    <?php
+                            unset($_SESSION['msg']);
+                        }
+                    ?>
 
                     <div class="card" style="max-width: 700px">
 
@@ -307,7 +344,13 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                     </table>
 
                     <a href="<?php echo get_site_url().'/wp-cron.php';?>" target="_blank">Resync</a>&nbsp;&nbsp;
-                    <a href="<?php echo get_site_url().'/wp-content/plugins/aitrillion/aitrillion-log.txt';?>" target="_blank">View Log File</a>&nbsp;
+                    <a href="<?php echo get_site_url().'/wp-content/plugins/aitrillion/aitrillion-log.txt';?>" target="_blank">View Log File</a>&nbsp;&nbsp;
+
+                    <?php 
+                        $filesize = filesize(AITRILLION_PATH.'aitrillion-log.txt'); // bytes
+                        $filesize = round($filesize / 1024 / 1024, 1); // megabytes with 1 digit
+                    ?>
+                    <a href="<?php echo admin_url( 'admin.php' ).'?action=aitrillion_clear_log'; ?>" onclick="return confirm('Are you sure?')">Clear Log (File size: <?=$filesize?> MB)</a>&nbsp;&nbsp;
                 </div>
             </div>
      
@@ -431,6 +474,5 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
           </div>'; 
     }
     add_action( 'admin_notices', 'aitrillion_admin_notice' );
-
 }
 
