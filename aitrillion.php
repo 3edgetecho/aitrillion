@@ -209,27 +209,35 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                                                 'Authorization' => 'Basic ' . base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password )
                                             )
                                         ));
+                                        
 
-                                        $r = json_decode($response['body']);
+                                        if( !is_wp_error( $response['body'] ) ) {
 
-                                        if(isset($r->status) && $r->status == 'sucess'){
+                                            $r = json_decode($response['body']);
 
-                                            echo '<strong style="color: green">Active</strong>';
+                                            if(isset($r->status) && $r->status == 'sucess'){
 
-                                        }else{
+                                                echo '<strong style="color: green">Active</strong>';
 
-                                            echo '<strong style="color: red">In-active</strong>';
+                                            }else{
 
-                                            if(isset($r->status) && $r->status == 'error'){
+                                                echo '<strong style="color: red">In-active</strong>';
 
-                                                 echo ' <strong style="color: red">('.$r->msg.')</strong>';
+                                                if(isset($r->status) && $r->status == 'error'){
 
-                                            }elseif(isset($r->message)){
+                                                     echo ' <strong style="color: red">('.$r->msg.')</strong>';
 
-                                                echo ' <strong style="color: red">('.$r->message.')</strong>';
+                                                }elseif(isset($r->message)){
+
+                                                    echo ' <strong style="color: red">('.$r->message.')</strong>';
+                                                }
+
                                             }
-
+                                        }else{
+                                            echo ' <strong style="color: red">('.$response['body']->get_error_message().')</strong>';   
                                         }
+
+                                        
                                     ?>
                                 </td>
                             </tr>
