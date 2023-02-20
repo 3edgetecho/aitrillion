@@ -80,6 +80,12 @@ function aitrilltion_get_customer( $customer_id ){
 
                 );
 
+        if(method_exists($customer, 'get_shipping_phone')){
+            $shipping_phone = $customer->get_shipping_phone();
+        }else{
+            $shipping_phone = '';
+        }
+
         $address[] = array(
                     'id' => 2,
                     'customer_id' => $customer_id,
@@ -90,7 +96,7 @@ function aitrilltion_get_customer( $customer_id ){
                     'city' => $customer->get_shipping_city(),
                     'province' => $customer->get_shipping_state(),
                     'zip' => $customer->get_shipping_postcode(),
-                    'phone' => $customer->get_shipping_phone(),
+                    'phone' => $shipping_phone,
                     'name' => $customer->get_shipping_first_name().' '.$customer->get_shipping_last_name(),
                     'country_code' => $customer->get_shipping_country(),
                     'default' => false,
