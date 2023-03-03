@@ -19,7 +19,8 @@ add_action( 'init', 'aitrillion_data_sync_cron' );
 function aitrillion_data_sync_cron() {
 
     if ( ! wp_next_scheduled( 'aitrillion_data_sync_schedule' ) ) {
-        wp_schedule_event( time(), 'every_minute', 'aitrillion_data_sync_schedule' );
+        //wp_schedule_event( time(), 'every_minute', 'aitrillion_data_sync_schedule' );
+        wp_schedule_single_event( time(), 'aitrillion_data_sync_schedule' );
     }
 }
 
@@ -120,8 +121,8 @@ function sync_new_customers(){
 
         if(!empty($failed_sync_users)){
             // if there are failed sync users, add them into next cron queue
-            update_option('_aitrillion_created_users', $failed_sync_users);
-            update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
+            update_option('_aitrillion_created_users', $failed_sync_users, false);
+            update_option('_aitrillion_failed_sync_users', $failed_sync_users_data, false);
 
         }else{
 
@@ -199,8 +200,8 @@ function sync_updated_customers(){
     if(!empty($failed_sync_users)){
         
         // if there are failed sync users, add them into next cron queue
-        update_option('_aitrillion_updated_users', $failed_sync_users);
-        update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
+        update_option('_aitrillion_updated_users', $failed_sync_users, false);
+        update_option('_aitrillion_failed_sync_users', $failed_sync_users_data, false);
 
     }else{
 
@@ -265,8 +266,8 @@ function sync_deleted_customers(){
         if(!empty($failed_sync_users)){
         
             // if there are failed sync users, add them into next cron queue
-            update_option('_aitrillion_deleted_users', $failed_sync_users);
-            update_option('_aitrillion_failed_sync_users', $failed_sync_users_data);
+            update_option('_aitrillion_deleted_users', $failed_sync_users, false);
+            update_option('_aitrillion_failed_sync_users', $failed_sync_users_data, false);
 
         }else{
 
@@ -375,15 +376,23 @@ function sync_updated_products(){
         // remove duplicate ids
         $products = array_unique($products);
 
+        aitrillion_api_log('unique products: '.print_r($products, true).PHP_EOL);
+
         foreach($products as $product_id){
+
+            aitrillion_api_log('Product id: '.$product_id.PHP_EOL);
 
             $p = array();
 
             $product = wc_get_product( $product_id );
 
-            $p = aitrillion_get_product( $product ); 
+            $product_status = $product->get_status();
 
-            //aitrillion_api_log('Product: '.$p.PHP_EOL);
+            if($product_status != 'publish'){
+                continue;
+            }
+
+            $p = aitrillion_get_product( $product ); 
 
             $json_payload = json_encode($p);
 
@@ -493,8 +502,8 @@ function sync_deleted_products(){
         if(!empty($failed_sync_products)){
         
             // if there are failed sync products, add them into next cron queue
-            update_option('_aitrillion_deleted_products', $failed_sync_products);
-            update_option('_aitrillion_failed_sync_products', $failed_sync_products_data);
+            update_option('_aitrillion_deleted_products', $failed_sync_products, false);
+            update_option('_aitrillion_failed_sync_products', $failed_sync_products_data, false);
 
         }else{
 
@@ -595,8 +604,8 @@ function sync_new_categories(){
 
         if(!empty($failed_sync_categories)){
             // if there are failed sync category, add them into next cron queue
-            update_option('_aitrillion_created_categories', $failed_sync_categories);
-            update_option('_aitrillion_failed_sync_categories', $failed_sync_category_data);
+            update_option('_aitrillion_created_categories', $failed_sync_categories, false);
+            update_option('_aitrillion_failed_sync_categories', $failed_sync_category_data, false);
 
         }else{
 
@@ -762,8 +771,8 @@ function sync_deleted_categories(){
         if(!empty($failed_sync_categories)){
         
             // if there are failed sync category, add them into next cron queue
-            update_option('_aitrillion_deleted_categories', $failed_sync_categories);
-            update_option('_aitrillion_failed_sync_categories', $failed_sync_category_data);
+            update_option('_aitrillion_deleted_categories', $failed_sync_categories, false);
+            update_option('_aitrillion_failed_sync_categories', $failed_sync_category_data, false);
 
         }else{
 
@@ -843,13 +852,15 @@ function sync_new_orders(){
         if(!empty($failed_sync_order)){
         
             // if there are failed sync orders, add them into next cron queue
-            update_option('_aitrillion_created_orders', $failed_sync_order);
-            update_option('_aitrillion_failed_sync_orders', $failed_sync_orders_data);
+            update_option('_aitrillion_created_orders', $failed_sync_order, false);
+            update_option('_aitrillion_failed_sync_orders', $failed_sync_orders_data, false);
 
         }else{
 
             // all order synced successfully, clear queue
-            delete_option('_aitrillion_created_orders');    
+            delete_option('_aitrillion_created_orders');   
+             
+            update_post_meta($order_id, '_aitrillion_order_sync', 'true');
         }
     }
 }
@@ -923,8 +934,8 @@ function sync_updated_orders(){
         if(!empty($failed_sync_order)){
         
             // if there are failed sync orders, add them into next cron queue
-            update_option('_aitrillion_updated_orders', $failed_sync_order);
-            update_option('_aitrillion_failed_sync_orders', $failed_sync_orders_data);
+            update_option('_aitrillion_updated_orders', $failed_sync_order, false);
+            update_option('_aitrillion_failed_sync_orders', $failed_sync_orders_data, false);
 
         }else{
 
@@ -991,8 +1002,8 @@ function sync_deleted_orders(){
         if(!empty($failed_sync_order)){
         
             // if there are failed sync orders, add them into next cron queue
-            update_option('_aitrillion_deleted_orders', $failed_sync_order);
-            update_option('_aitrillion_failed_sync_order', $failed_sync_orders_data);
+            update_option('_aitrillion_deleted_orders', $failed_sync_order, false);
+            update_option('_aitrillion_failed_sync_order', $failed_sync_orders_data, false);
 
         }else{
 

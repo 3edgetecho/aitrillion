@@ -9,7 +9,7 @@ add_action( 'woocommerce_after_single_product_summary', 'aitrillion_related_prod
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_new_arrival');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_trending_product');
 add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_recent_view');
-add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_product_page');
+//add_action( 'woocommerce_after_single_product_summary', 'aitrillion_ait_product_page');
 
 // create coupon shortcode and show on cart page
 add_action( 'woocommerce_cart_coupon', 'aitrillion_coupon_widget');
@@ -27,6 +27,7 @@ add_action( 'woocommerce_after_main_content', 'aitrillion_after_shop_recent_view
 // create referral hidden field and blocked customer field and show at footer
 add_action( 'wp_footer', 'aitrillion_referral_hidden_fields' );
 add_action( 'wp_footer', 'aitrillion_lyt_blocked_customer' );
+add_action( 'wp_footer', 'aitrillion_ait_product_page' );
 
 // include aitrillion js script
 add_action('wp_enqueue_scripts', 'aitrillion_script');
@@ -70,7 +71,10 @@ function aitrillion_ait_recent_view() {
 }
 
 function aitrillion_ait_product_page() {
-    echo '<div id="ait_product_page"></div>';
+    if(is_product()){
+        echo '<div id="ait_product_page"></div>';
+    }
+    
 }
 
 function aitrillion_coupon_widget(){
@@ -113,6 +117,10 @@ function aitrillion_script() {
         // get aitrillion script version
         $script_version = get_option('_aitrillion_script_version');
 
+        if(empty($script_version)){
+            $script_version = 1;
+        }
+
         if($userid){
 
             $script = "
@@ -139,17 +147,15 @@ function aitrillion_script() {
                 <!-- END AITRILLION APP SCRIPT -->";
         }
 
-        
-
         $url = explode('?', $aitrilltion_script);
 
         wp_enqueue_script( 'aitrillion-script', $url[0].'?v='.$script_version.'&'.$url[1], array(), null);
 
         wp_add_inline_script('aitrillion-script', $script, 'after');     
 
-        wp_enqueue_style( 'bootstrapcss','https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css', false, null );
+//        wp_enqueue_style( 'bootstrapcss','https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css', false, null );
 
-        wp_enqueue_style( 'fontawesomecss','http://netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css', false, null );
+//        wp_enqueue_style( 'fontawesomecss','http://netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css', false, null );
     }
 
     

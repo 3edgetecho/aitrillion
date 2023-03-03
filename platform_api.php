@@ -907,7 +907,7 @@ function aitrillion_updateScriptVersion(){
         $script_version++;    
     }
 
-    update_option('_aitrillion_script_version', $script_version);
+    update_option('_aitrillion_script_version', $script_version, false);
 
     $script_version = get_option('_aitrillion_script_version');
 
@@ -936,7 +936,7 @@ function aitrillion_blockLoyaltyMember(WP_REST_Request $request){
 
     $member_ids = $params['member_ids'];
 
-    update_option('_aitrillion_block_loyalty_members', $member_ids);
+    update_option('_aitrillion_block_loyalty_members', $member_ids, false);
 
     $return['result'] = false;
     $return['message'] = 'ID Updated';

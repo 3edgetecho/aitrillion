@@ -4,9 +4,9 @@
  * Plugin Name:       AiTrillion
  * Plugin URI:        https://wordpress.org/plugins/aitrillion/
  * Description:       Exclusive Loyalty Program with Email Marketing, SMS, Push, Product Reviews, Membership & 11+ feature
- * Version:           1.0
+ * Version:           1.0.2
  * Requires at least: 5.2
- * Requires PHP:      7.2
+ * Requires PHP:      5.6
  * Author:            AiTrillion
  * Author URI:        https://www.aitrillion.com
  */
@@ -39,7 +39,7 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
     define( 'AITRILLION_URL', plugin_dir_url( AITRILLION_FILE ) );
 
     // Define end point of Ai Trillion 
-    define('AITRILLION_END_POINT', 'https://connector-api-dev.aitrillion.com/');
+    define('AITRILLION_END_POINT', 'https://connector-api.aitrillion.com/');
     define('AITRILLION_APP_NAME', 'Aitrillion');
 
     $domain = preg_replace("(^https?://)", "", site_url() );
@@ -95,9 +95,6 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
             register_setting( 'aitrillion_options', '_aitrillion_api_password');
             register_setting( 'aitrillion_options', '_aitrillion_script_url' );
             register_setting( 'aitrillion_options', '_aitrillion_affiliate_module' );
-
-            update_option('_aitrillion_script_version', '1');
-
         }
 
         add_action('init', 'start_session', 1);
@@ -209,7 +206,7 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                                                 'Authorization' => 'Basic ' . base64_encode( $_aitrillion_api_key.':'.$_aitrillion_api_password )
                                             )
                                         ));
-                                        
+
 
                                         if( !is_wp_error( $response['body'] ) ) {
 
@@ -276,6 +273,25 @@ if (in_array( $woocommerce_plugin_path, wp_get_active_and_valid_plugins() ))
                                     $wc_query = new WP_Query($params);
 
                                     $failed_products = $wc_query->found_posts;
+
+                                    $failed_products = 0;
+
+                                    $orders = get_option( '_aitrillion_created_orders' );
+                                    if($orders){
+                                        // remove duplicate ids
+                                        $orders = array_unique($orders);
+
+                                        $failed_products = count($orders);
+                                    }
+
+                                    $orders = get_option( '_aitrillion_updated_orders' );
+                                    if($orders){
+                                        // remove duplicate ids
+                                        $orders = array_unique($orders);
+
+                                        $failed_products = $failed_products + count($orders);
+                                    }
+                                    
 
                                     echo $failed_products;
                                 ?>
